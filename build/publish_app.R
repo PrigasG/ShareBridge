@@ -9,6 +9,8 @@
 #   - Detect package dependencies
 #   - Write req.txt
 #   - Merge req_extra.txt if present
+#   - Read optional app feature config
+#   - Ensure writable app dirs exist when requested
 #   - Write app_meta.cfg (name, ID, port, host)
 #   - Create VERSION and README files
 #   - Ensure logs/ exists
@@ -166,13 +168,132 @@ detect_dependencies <- function(app_dir) {
   detect_dependencies_regex(app_dir)
 }
 
+# pandoc builder ----
+ensure_pandoc_stub <- function(output_dir) {
+  pandoc_dir <- file.path(output_dir, "pandoc")
+  if (!dir.exists(pandoc_dir)) {
+    dir.create(pandoc_dir, recursive = TRUE, showWarnings = FALSE)
+  }
+
+  readme <- file.path(pandoc_dir, "README_Pandoc.txt")
+  writeLines(c(
+    "Pandoc support",
+    "",
+    "If this app needs PDF or R Markdown rendering with Pandoc,",
+    "install Pandoc into this folder.",
+    "",
+    "Expected executable:",
+    "pandoc/pandoc.exe",
+    "",
+    "After installing, LaunchApp will use this local Pandoc folder if present."
+  ), readme, useBytes = TRUE)
+
+  invisible(pandoc_dir)
+}
+
+# ------------------------------------------------------------------
+# App feature helpers
+# ------------------------------------------------------------------
+default_app_features <- function() {
+  list(
+    enable_write_mode = FALSE,
+    writable_dirs = character(0),
+    include_pandoc = FALSE,
+    bundle_rmarkdown_support = FALSE
+  )
+}
+
+as_character_vector <- function(x) {
+  if (is.null(x)) return(character(0))
+  x <- unlist(x, use.names = FALSE)
+  x <- trimws(as.character(x))
+  unique(x[nzchar(x)])
+}
+
+read_app_features_file <- function(path = NULL) {
+  features <- default_app_features()
+
+  if (is.null(path) || !nzchar(path)) {
+    return(features)
+  }
+
+  if (!file.exists(path)) {
+    stop("app_features_file does not exist: ", path)
+  }
+
+  if (!requireNamespace("jsonlite", quietly = TRUE)) {
+    stop("The jsonlite package is required to read app_features_file.")
+  }
+
+  raw <- tryCatch(
+    jsonlite::read_json(path, simplifyVector = TRUE),
+    error = function(e) stop("Failed to read app_features_file: ", conditionMessage(e))
+  )
+
+  if (!is.list(raw)) {
+    stop("app_features_file must contain a JSON object.")
+  }
+
+  features$enable_write_mode <- isTRUE(raw$enable_write_mode)
+  features$writable_dirs <- as_character_vector(raw$writable_dirs)
+  features$include_pandoc <- isTRUE(raw$include_pandoc)
+  features$bundle_rmarkdown_support <- isTRUE(raw$bundle_rmarkdown_support)
+
+  features
+}
+
+normalize_relative_subdirs <- function(paths) {
+  paths <- as_character_vector(paths)
+  if (!length(paths)) return(character(0))
+
+  parts <- strsplit(paths, "[/\\\\]+")
+  normalized <- vapply(parts, function(seg) {
+    seg <- trimws(seg)
+    seg <- seg[nzchar(seg)]
+    seg <- seg[seg != "."]
+    if (!length(seg)) return(NA_character_)
+    if (any(seg == "..")) {
+      stop("writable_dirs may not contain '..' path traversal segments.")
+    }
+    paste(seg, collapse = "/")
+  }, character(1), USE.NAMES = FALSE)
+
+  normalized <- normalized[!is.na(normalized) & nzchar(normalized)]
+  unique(normalized)
+}
+
+ensure_app_writable_dirs <- function(app_dir, writable_dirs) {
+  writable_dirs <- normalize_relative_subdirs(writable_dirs)
+  if (!length(writable_dirs)) {
+    return(character(0))
+  }
+
+  created <- character(0)
+
+  for (rel in writable_dirs) {
+    target <- file.path(app_dir, strsplit(rel, "/", fixed = TRUE)[[1]])
+    if (!dir.exists(target)) {
+      dir.create(target, recursive = TRUE, showWarnings = FALSE)
+    }
+    if (!dir.exists(target)) {
+      stop("Failed to create writable app directory: ", rel)
+    }
+    created <- c(created, safe_norm(target, mustWork = TRUE))
+  }
+
+  created
+}
+
+pandoc_support_packages <- function(bundle_rmarkdown_support = FALSE) {
+  pkgs <- c("rmarkdown")
+  if (isTRUE(bundle_rmarkdown_support)) {
+    pkgs <- c(pkgs, "knitr", "markdown", "htmltools", "yaml")
+  }
+  sort(unique(pkgs))
+}
+
 # ------------------------------------------------------------------
 # Port assignment
-# ------------------------------------------------------------------
-# Each app gets a deterministic preferred port derived from its ID.
-# Range: 3400-4400 (1001 slots). If two app IDs happen to hash to
-# the same port, run.R already falls back to a random port, so
-# collisions are handled at runtime regardless.
 # ------------------------------------------------------------------
 derive_port <- function(app_id, range_start = 3400L, range_size = 1001L) {
   raw <- charToRaw(app_id)
@@ -213,7 +334,6 @@ read_portable_r_version <- function(r_portable_dir) {
 }
 
 write_version_file <- function(path, app_name, detected_pkgs, r_version = NULL) {
-  # Use the bundled portable R version if provided, otherwise the running R
   if (is.null(r_version) || !nzchar(r_version) || identical(r_version, "unknown")) {
     r_version <- paste(R.version$major, R.version$minor, sep = ".")
   }
@@ -258,14 +378,202 @@ write_readmes <- function(output_dir, app_name) {
   ), con = publisher_readme, useBytes = TRUE)
 }
 
-copy_dir_contents <- function(src_dir, dst_dir) {
-  items <- list.files(src_dir, all.files = TRUE, no.. = TRUE, full.names = TRUE)
-  if (!length(items)) return(invisible(TRUE))
-  ok <- file.copy(items, dst_dir, recursive = TRUE, overwrite = TRUE, copy.mode = TRUE)
-  if (!all(ok)) {
-    failed <- basename(items[!ok])
-    stop("Failed to copy some source items: ", paste(failed, collapse = ", "))
+# ------------------------------------------------------------------
+# Copy helpers
+# ------------------------------------------------------------------
+is_windows <- function() {
+  identical(.Platform$OS.type, "windows")
+}
+
+copy_file_with_retries <- function(src, dst, retries = 2L, wait_seconds = 0.25) {
+  src <- safe_norm(src, mustWork = TRUE)
+
+  parent <- dirname(dst)
+  if (!dir.exists(parent)) dir.create(parent, recursive = TRUE, showWarnings = FALSE)
+
+  for (attempt in seq_len(retries + 1L)) {
+    ok <- tryCatch(
+      isTRUE(file.copy(src, dst, overwrite = TRUE, copy.mode = TRUE, copy.date = TRUE)),
+      warning = function(w) FALSE,
+      error = function(e) FALSE
+    )
+    if (ok) return(TRUE)
+    if (attempt <= retries) Sys.sleep(wait_seconds)
   }
+
+  FALSE
+}
+
+
+copy_dir_recursive_r <- function(src_dir, dst_dir, retries = 2L, wait_seconds = 0.25) {
+  src_dir <- safe_norm(src_dir, mustWork = TRUE)
+
+  if (!dir.exists(src_dir)) {
+    stop("Source directory does not exist: ", src_dir)
+  }
+
+  if (!dir.exists(dst_dir)) {
+    dir.create(dst_dir, recursive = TRUE, showWarnings = FALSE)
+  }
+
+  entries <- list.files(
+    src_dir,
+    all.files = TRUE,
+    no.. = TRUE,
+    recursive = TRUE,
+    full.names = TRUE,
+    include.dirs = TRUE
+  )
+
+  if (!length(entries)) {
+    return(invisible(TRUE))
+  }
+
+  rel <- substring(entries, nchar(src_dir) + 2L)
+  ord <- order(nchar(rel))
+  entries <- entries[ord]
+  rel <- rel[ord]
+
+  failed <- character(0)
+
+  for (i in seq_along(entries)) {
+    src <- entries[[i]]
+    dst <- file.path(dst_dir, rel[[i]])
+
+    if (dir.exists(src)) {
+      if (!dir.exists(dst)) {
+        dir.create(dst, recursive = TRUE, showWarnings = FALSE)
+      }
+      if (!dir.exists(dst)) {
+        failed <- c(failed, rel[[i]])
+      }
+    } else {
+      ok <- copy_file_with_retries(src, dst, retries = retries, wait_seconds = wait_seconds)
+      if (!ok) {
+        failed <- c(failed, rel[[i]])
+      }
+    }
+  }
+
+  if (length(failed)) {
+    stop(
+      "Failed to copy ", length(failed), " path(s). First failures: ",
+      paste(utils::head(failed, 20), collapse = ", ")
+    )
+  }
+
+  invisible(TRUE)
+}
+
+copy_dir_robocopy <- function(src_dir, dst_dir, mirror = FALSE) {
+  src_dir <- safe_norm(src_dir, mustWork = TRUE)
+
+  if (!dir.exists(src_dir)) {
+    stop("Source directory does not exist: ", src_dir)
+  }
+
+  if (dir.exists(dst_dir) && isTRUE(mirror)) {
+    unlink(dst_dir, recursive = TRUE, force = TRUE)
+  }
+  if (!dir.exists(dst_dir)) {
+    dir.create(dst_dir, recursive = TRUE, showWarnings = FALSE)
+  }
+
+  src_native <- normalizePath(src_dir, winslash = "\\", mustWork = TRUE)
+  dst_native <- normalizePath(dst_dir, winslash = "\\", mustWork = FALSE)
+
+  robocopy_args <- c(
+    shQuote(src_native, type = "cmd"),
+    shQuote(dst_native, type = "cmd"),
+    "/E",
+    "/COPY:DAT",
+    "/DCOPY:DAT",
+    "/R:2",
+    "/W:1",
+    "/NFL",
+    "/NDL",
+    "/NJH",
+    "/NJS",
+    "/NP"
+  )
+
+  cmd_line <- paste("robocopy", paste(robocopy_args, collapse = " "))
+
+  res <- suppressWarnings(
+    system2("cmd.exe", args = c("/c", cmd_line), stdout = TRUE, stderr = TRUE)
+  )
+
+  status <- attr(res, "status")
+  if (is.null(status)) status <- 0L
+
+  cat_line("[copy] robocopy command: ", cmd_line)
+  cat_line("[copy] robocopy exit code: ", status)
+
+  if (length(res)) {
+    for (line in res) {
+      if (nzchar(trimws(line))) cat_line("[copy] ", line)
+    }
+  }
+
+  if (as.integer(status) >= 8L) {
+    stop("robocopy failed with exit code ", status)
+  }
+
+  invisible(TRUE)
+}
+
+copy_dir_contents <- function(src_dir, dst_dir, clean_dest = FALSE, use_robocopy = FALSE,
+                              retries = 2L, wait_seconds = 0.25) {
+  src_dir <- safe_norm(src_dir, mustWork = TRUE)
+
+  if (isTRUE(clean_dest) && dir.exists(dst_dir)) {
+    unlink(dst_dir, recursive = TRUE, force = TRUE)
+  }
+  if (!dir.exists(dst_dir)) {
+    dir.create(dst_dir, recursive = TRUE, showWarnings = FALSE)
+  }
+
+  if (isTRUE(use_robocopy) && is_windows()) {
+    return(copy_dir_robocopy(src_dir, dst_dir, mirror = FALSE))
+  }
+
+  top_items <- list.files(src_dir, all.files = TRUE, no.. = TRUE, full.names = TRUE)
+  if (!length(top_items)) return(invisible(TRUE))
+
+  failures <- character(0)
+
+  for (src_item in top_items) {
+    dst_item <- file.path(dst_dir, basename(src_item))
+
+    ok <- tryCatch({
+      if (dir.exists(src_item)) {
+        copy_dir_recursive_r(
+          src_dir = src_item,
+          dst_dir = dst_item,
+          retries = retries,
+          wait_seconds = wait_seconds
+        )
+      } else {
+        if (!copy_file_with_retries(src_item, dst_item, retries = retries, wait_seconds = wait_seconds)) {
+          stop("file copy failed")
+        }
+      }
+      TRUE
+    }, error = function(e) {
+      cat_line("[copy] failed: ", src_item)
+      cat_line("[copy] reason: ", conditionMessage(e))
+      FALSE
+    })
+
+    if (!isTRUE(ok)) {
+      failures <- c(failures, basename(src_item))
+    }
+  }
+
+  if (length(failures)) {
+    stop("Failed to copy some source items: ", paste(failures, collapse = ", "))
+  }
+
   invisible(TRUE)
 }
 
@@ -287,6 +595,7 @@ publish_app_main <- function(
     app_name = NULL,
     framework_dir = ".",
     req_extra_file = NULL,
+    app_features_file = NULL,
     zip_output = FALSE,
     build_offline_repo = FALSE,
     cran_repo = "https://cloud.r-project.org",
@@ -301,9 +610,11 @@ publish_app_main <- function(
     app_name <- basename(output_dir)
   }
 
+  app_features <- read_app_features_file(app_features_file)
+  app_features$writable_dirs <- normalize_relative_subdirs(app_features$writable_dirs)
+
   app_id <- make_app_id(app_name)
 
-  # Derive a unique port per app unless explicitly provided
   if (is.null(preferred_port)) {
     preferred_port <- derive_port(app_id)
   }
@@ -315,6 +626,10 @@ publish_app_main <- function(
   cat_line("[publish] App name:      ", app_name)
   cat_line("[publish] App ID:        ", app_id)
   cat_line("[publish] Preferred port:", preferred_port)
+  cat_line("[publish] enable_write_mode: ", app_features$enable_write_mode)
+  cat_line("[publish] writable_dirs: ", paste(app_features$writable_dirs, collapse = ", "))
+  cat_line("[publish] include_pandoc: ", app_features$include_pandoc)
+  cat_line("[publish] bundle_rmarkdown_support: ", app_features$bundle_rmarkdown_support)
 
   required_framework_files <- c("LaunchApp.hta", "run.bat", "run.R")
   missing_framework <- required_framework_files[
@@ -333,6 +648,8 @@ publish_app_main <- function(
   cat_line("[publish] App mode detected: ", mode)
 
   output_dir <- reset_dir(output_dir)
+  cat_line("[publish] Output dir reset complete.")
+  cat_line("[publish] Output dir exists: ", dir.exists(output_dir))
 
   ensure_dir(output_dir)
   ensure_dir(file.path(output_dir, "app"))
@@ -345,28 +662,53 @@ publish_app_main <- function(
 
   file.copy(build_script, file.path(output_dir, "build", "build_packages.R"), overwrite = TRUE)
 
-  # ------------------------------------------------------------------
-  # Copy portable R into deployment
-  # ------------------------------------------------------------------
-  r_portable_src <- file.path(framework_dir, "R-portable")
+  r_portable_src_candidates <- c(
+    file.path(framework_dir, "R-portable-master"),
+    file.path(framework_dir, "R-portable")
+  )
+
+  existing_candidates <- r_portable_src_candidates[dir.exists(r_portable_src_candidates)]
+
+  if (length(existing_candidates)) {
+    r_portable_src <- existing_candidates[1]
+  } else {
+    r_portable_src <- file.path(framework_dir, "R-portable")
+  }
+
   portable_r_version <- NA_character_
+  cat_line("[publish] Portable R source: ", r_portable_src)
 
   if (dir.exists(r_portable_src)) {
-    cat_line("[publish] Copying portable R from: ", r_portable_src)
+    cat_line("[publish] Portable R top-level entries: ",
+             paste(list.files(r_portable_src, all.files = TRUE, no.. = TRUE), collapse = ", "))
+
     r_dest <- file.path(output_dir, "R")
-    ensure_dir(r_dest)
-    copy_dir_contents(r_portable_src, r_dest)
+
+    withCallingHandlers(
+      {
+        copy_dir_contents(
+          src_dir = r_portable_src,
+          dst_dir = r_dest,
+          clean_dest = TRUE,
+          use_robocopy = TRUE,
+          retries = 3L,
+          wait_seconds = 0.5
+        )
+      },
+      warning = function(w) {
+        cat_line("[copy warning] ", conditionMessage(w))
+        invokeRestart("muffleWarning")
+      }
+    )
+
     portable_r_version <- read_portable_r_version(r_portable_src)
     cat_line("[publish] Portable R version: ", portable_r_version %||% "unknown")
   } else {
-    cat_line("[publish] WARNING: No R-portable/ found in framework directory.")
+    cat_line("[publish] WARNING: No R-portable-master/ or R-portable/ found in framework directory.")
     cat_line("[publish]   Users will need R installed on their system.")
-    cat_line("[publish]   Run strip_r.R first to create a portable R.")
+    cat_line("[publish]   Run strip_r.R first to create portable R.")
   }
 
-  # ------------------------------------------------------------------
-  # Write app_meta.cfg — drives run.bat, run.R, and LaunchApp.hta
-  # ------------------------------------------------------------------
   write_app_meta(
     path = file.path(output_dir, "app_meta.cfg"),
     app_name = app_name,
@@ -376,9 +718,24 @@ publish_app_main <- function(
   )
   cat_line("[publish] app_meta.cfg written.")
 
-  copy_dir_contents(source_dir, file.path(output_dir, "app"))
+  app_out_dir <- file.path(output_dir, "app")
+  copy_dir_contents(
+    src_dir = source_dir,
+    dst_dir = app_out_dir,
+    clean_dest = FALSE,
+    use_robocopy = FALSE,
+    retries = 2L,
+    wait_seconds = 0.25
+  )
 
-  detected_pkgs <- detect_dependencies(file.path(output_dir, "app"))
+  created_writable_dirs <- character(0)
+  if (isTRUE(app_features$enable_write_mode) && length(app_features$writable_dirs)) {
+    cat_line("[publish] Ensuring writable app dirs exist...")
+    created_writable_dirs <- ensure_app_writable_dirs(app_out_dir, app_features$writable_dirs)
+    cat_line("[publish] Writable dirs ready: ", paste(app_features$writable_dirs, collapse = ", "))
+  }
+
+  detected_pkgs <- detect_dependencies(app_out_dir)
   detected_pkgs <- unique(c("shiny", detected_pkgs))
 
   extra_req <- character(0)
@@ -392,6 +749,21 @@ publish_app_main <- function(
     if (!is.null(p) && file.exists(p)) {
       extra_req <- unique(c(extra_req, read_req_file(p)))
     }
+  }
+
+  # if (isTRUE(app_features$include_pandoc)) {
+  #   pandoc_pkgs <- pandoc_support_packages(app_features$bundle_rmarkdown_support)
+  #   cat_line("[publish] Adding Pandoc support packages: ", paste(pandoc_pkgs, collapse = ", "))
+  #   extra_req <- unique(c(extra_req, pandoc_pkgs))
+  # }
+
+  if (isTRUE(app_features$include_pandoc)) {
+    pandoc_dir <- ensure_pandoc_stub(output_dir)
+    cat_line("[publish] Pandoc folder prepared at: ", pandoc_dir)
+
+    pandoc_pkgs <- pandoc_support_packages(app_features$bundle_rmarkdown_support)
+    cat_line("[publish] Adding Pandoc support packages: ", paste(pandoc_pkgs, collapse = ", "))
+    extra_req <- unique(c(extra_req, pandoc_pkgs))
   }
 
   final_req <- sort(unique(c(detected_pkgs, extra_req)))
@@ -446,6 +818,13 @@ publish_app_main <- function(
       preferred_port = preferred_port,
       host = host
     ),
+    app_features = list(
+      enable_write_mode = app_features$enable_write_mode,
+      writable_dirs = app_features$writable_dirs,
+      include_pandoc = app_features$include_pandoc,
+      bundle_rmarkdown_support = app_features$bundle_rmarkdown_support,
+      created_writable_dirs = created_writable_dirs
+    ),
     portable_r = list(
       bundled = dir.exists(file.path(output_dir, "R")),
       version = portable_r_version
@@ -456,8 +835,9 @@ publish_app_main <- function(
 if (identical(environment(), globalenv()) && !length(sys.frames()) > 1) {
   args <- parse_args(commandArgs(trailingOnly = TRUE))
 
-  script_path <- tryCatch(normalizePath(sys.frames()[[1]]$ofile, winslash = "/", mustWork = TRUE),
-                          error = function(e) NULL
+  script_path <- tryCatch(
+    normalizePath(sys.frames()[[1]]$ofile, winslash = "/", mustWork = TRUE),
+    error = function(e) NULL
   )
 
   framework_dir <- if (!is.null(args$framework_dir) && nzchar(args$framework_dir)) {
@@ -482,6 +862,7 @@ if (identical(environment(), globalenv()) && !length(sys.frames()) > 1) {
     app_name = args$app_name %||% basename(output_dir),
     framework_dir = framework_dir,
     req_extra_file = args$req_extra_file %||% NULL,
+    app_features_file = args$app_features_file %||% NULL,
     zip_output = flag_value(args$zip_output %||% args$zip, FALSE),
     build_offline_repo = flag_value(args$build_offline_repo, FALSE),
     cran_repo = args$cran_repo %||% "https://cloud.r-project.org",

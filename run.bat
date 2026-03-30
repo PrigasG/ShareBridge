@@ -49,13 +49,18 @@ if not exist "%AppDir%" (
 )
 
 REM =========================================================
-REM Logging: TEMP first, fallback to local logs
+REM Logging: local logs first, fallback to TEMP
 REM =========================================================
-set "LogDir=%TEMP%\%APP_ID_SAFE%_logs"
+set "LogDir=%RootDir%\logs"
 if not exist "%LogDir%" mkdir "%LogDir%" >nul 2>&1
 
-if not exist "%LogDir%" (
-  set "LogDir=%RootDir%\logs"
+set "LogTest=%LogDir%\__write_test.tmp"
+break > "%LogTest%" 2>nul
+
+if exist "%LogTest%" (
+  del "%LogTest%" >nul 2>&1
+) else (
+  set "LogDir=%TEMP%\%APP_ID_SAFE%_logs"
   if not exist "%LogDir%" mkdir "%LogDir%" >nul 2>&1
 )
 

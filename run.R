@@ -44,14 +44,22 @@ missing_from_libs <- function(pkgs, libs) {
   pkgs[!(pkgs %in% ip[, "Package"])]
 }
 
+pandoc_dir <- file.path(rd, "pandoc")
+pandoc_exe <- file.path(pandoc_dir, "pandoc.exe")
+
+if (file.exists(pandoc_exe)) {
+  Sys.setenv(RSTUDIO_PANDOC = pandoc_dir)
+  message(sprintf("[run] Using local Pandoc: %s", pandoc_dir))
+} else {
+  message(sprintf("[run] Local Pandoc not found at: %s", pandoc_dir))
+}
+
 cfg <- read_cfg(file.path(rd, "app_meta.cfg"))
 
-app_name <- Sys.getenv("APP_NAME", unset = cfg$APP_NAME %||% "Shiny App")
-app_id   <- Sys.getenv("APP_ID", unset = cfg$APP_ID %||% "ShinyApp")
-host     <- Sys.getenv("LTC_HOST", unset = cfg$HOST %||% "127.0.0.1")
-pref_port <- suppressWarnings(as.integer(
-  Sys.getenv("LTC_PORT", unset = cfg$PREFERRED_PORT %||% "3402")
-))
+app_name  <- Sys.getenv("APP_NAME", unset = cfg$APP_NAME %||% "Shiny App")
+app_id    <- Sys.getenv("APP_ID", unset = cfg$APP_ID %||% "ShinyApp")
+host      <- "127.0.0.1"
+pref_port <- suppressWarnings(as.integer(cfg$PREFERRED_PORT %||% "3402"))
 if (is.na(pref_port) || pref_port <= 0) pref_port <- 3402
 
 message(sprintf("[run] App: %s", app_name))
@@ -117,16 +125,31 @@ suppressPackageStartupMessages(
 Sys.setenv(SHINY_LOG_LEVEL = Sys.getenv("SHINY_LOG_LEVEL", unset = "INFO"))
 options(shiny.fullstacktrace = TRUE)
 
+#cool url ------------
+
+make_launch_url <- function(port, app_id) {
+  sprintf("http://sharebridge-%s.localhost:%d", tolower(app_id), as.integer(port))
+}
+
 run_on_port <- function(port) {
   browser_path <- file.path(rd, "chrome", "chrome.exe")
+  launch_url <- make_launch_url(port, app_id)
 
   launch_fun <- NULL
   if (file.exists(browser_path)) {
     launch_fun <- function(shinyurl) {
-      system2(browser_path, args = c(sprintf("--app=%s", shinyurl), "-incognito"), wait = FALSE)
+      message(sprintf("[run] Launching browser at: %s", launch_url))
+      system2(
+        browser_path,
+        args = c(sprintf("--app=%s", launch_url), "-incognito"),
+        wait = FALSE
+      )
     }
   } else {
-    launch_fun <- TRUE
+    launch_fun <- function(shinyurl) {
+      message(sprintf("[run] Launching browser at: %s", launch_url))
+      utils::browseURL(launch_url)
+    }
   }
 
   shiny::runApp(

@@ -4,16 +4,18 @@
 #   Create a safer minimal portable R from a full R installation.
 #
 # Strategy:
-#   - Copy the full R installation to framework_dir/R-portable
+#   - Copy the full R installation to framework_dir/R-portable-master
 #   - Remove only clearly non-runtime content by default
 #   - Optionally strip documentation from library packages
 #   - Verify that R starts, shiny loads, and optional req.txt packages load
+#   - Optionally refresh framework_dir/R-portable from the master copy
 #
 # Usage:
 #   Rscript strip_r.R --r_source "C:/path/to/R-4.3.2"
 #
 # Optional flags:
-#   --framework_dir   Where to put R-portable/ (default: script parent dir)
+#   --framework_dir     Where to put portable R folders (default: script parent dir)
+#   --refresh_runtime   Also refresh framework_dir/R-portable from R-portable-master (default: TRUE)
 #   --keep_tcltk      Keep Tcl/Tk runtime folders (default: FALSE)
 #   --strip_pkg_docs  Strip docs from base/recommended library packages (default: TRUE)
 #   --req_file        Optional req.txt to verify additional packages load
@@ -59,6 +61,12 @@ safe_norm <- function(path, mustWork = FALSE) {
 
 ensure_dir <- function(path) {
   if (!dir.exists(path)) dir.create(path, recursive = TRUE, showWarnings = FALSE)
+  safe_norm(path, mustWork = TRUE)
+}
+
+reset_dir <- function(path) {
+  if (dir.exists(path)) unlink(path, recursive = TRUE, force = TRUE)
+  dir.create(path, recursive = TRUE, showWarnings = FALSE)
   safe_norm(path, mustWork = TRUE)
 }
 
@@ -152,14 +160,166 @@ strip_package_docs <- function(pkg_path, dry_run = FALSE) {
 # ------------------------------------------------------------------
 # Copy full directory contents robustly
 # ------------------------------------------------------------------
-copy_dir_contents <- function(src_dir, dst_dir) {
-  items <- list.files(src_dir, all.files = TRUE, no.. = TRUE, full.names = TRUE)
-  if (!length(items)) return(invisible(TRUE))
-  ok <- file.copy(items, dst_dir, recursive = TRUE, overwrite = TRUE, copy.mode = TRUE)
-  if (!all(ok)) {
-    failed <- basename(items[!ok])
-    stop("Failed to copy some items: ", paste(failed, collapse = ", "))
+# ------------------------------------------------------------------
+# Copy full directory contents robustly
+# ------------------------------------------------------------------
+copy_one_path <- function(src, dst, overwrite = TRUE, retries = 2L, wait_seconds = 0.25) {
+  stopifnot(length(src) == 1L, length(dst) == 1L)
+
+  src <- safe_norm(src, mustWork = TRUE)
+
+  for (attempt in seq_len(retries + 1L)) {
+    ok <- tryCatch({
+      if (dir.exists(src)) {
+        if (!dir.exists(dst)) {
+          dir.create(dst, recursive = TRUE, showWarnings = FALSE)
+        }
+        TRUE
+      } else {
+        parent <- dirname(dst)
+        if (!dir.exists(parent)) {
+          dir.create(parent, recursive = TRUE, showWarnings = FALSE)
+        }
+        isTRUE(file.copy(
+          from = src,
+          to = dst,
+          overwrite = overwrite,
+          recursive = FALSE,
+          copy.mode = TRUE,
+          copy.date = TRUE
+        ))
+      }
+    }, warning = function(w) {
+      FALSE
+    }, error = function(e) {
+      FALSE
+    })
+
+    if (isTRUE(ok)) return(TRUE)
+
+    if (attempt <= retries) Sys.sleep(wait_seconds)
   }
+
+  FALSE
+}
+
+copy_dir_recursive <- function(src_dir, dst_dir, retries = 2L, wait_seconds = 0.25) {
+  src_dir <- safe_norm(src_dir, mustWork = TRUE)
+
+  if (!dir.exists(src_dir)) {
+    stop("Source directory does not exist: ", src_dir)
+  }
+
+  if (!dir.exists(dst_dir)) {
+    dir.create(dst_dir, recursive = TRUE, showWarnings = FALSE)
+  }
+
+  entries <- list.files(
+    src_dir,
+    all.files = TRUE,
+    no.. = TRUE,
+    recursive = TRUE,
+    full.names = TRUE,
+    include.dirs = TRUE
+  )
+
+  if (!length(entries)) {
+    return(invisible(list(copied = character(0), failed = character(0))))
+  }
+
+  rel <- substring(entries, nchar(src_dir) + 2L)
+  ord <- order(nchar(rel))
+  entries <- entries[ord]
+  rel <- rel[ord]
+
+  failed <- character(0)
+  copied <- character(0)
+
+  for (i in seq_along(entries)) {
+    src <- entries[[i]]
+    dst <- file.path(dst_dir, rel[[i]])
+
+    ok <- copy_one_path(
+      src = src,
+      dst = dst,
+      overwrite = TRUE,
+      retries = retries,
+      wait_seconds = wait_seconds
+    )
+
+    if (isTRUE(ok)) {
+      copied <- c(copied, rel[[i]])
+    } else {
+      failed <- c(failed, rel[[i]])
+    }
+  }
+
+  if (length(failed)) {
+    stop(
+      "Failed to copy ", length(failed), " path(s). First failures: ",
+      paste(utils::head(failed, 20), collapse = ", ")
+    )
+  }
+
+  invisible(list(copied = copied, failed = failed))
+}
+
+copy_dir_contents <- function(src_dir, dst_dir, clean_dest = FALSE, retries = 2L, wait_seconds = 0.25) {
+  src_dir <- safe_norm(src_dir, mustWork = TRUE)
+
+  if (isTRUE(clean_dest) && dir.exists(dst_dir)) {
+    unlink(dst_dir, recursive = TRUE, force = TRUE)
+  }
+  if (!dir.exists(dst_dir)) {
+    dir.create(dst_dir, recursive = TRUE, showWarnings = FALSE)
+  }
+
+  top_items <- list.files(src_dir, all.files = TRUE, no.. = TRUE, full.names = TRUE)
+
+  if (!length(top_items)) {
+    return(invisible(TRUE))
+  }
+
+  failures <- character(0)
+
+  for (src_item in top_items) {
+    dst_item <- file.path(dst_dir, basename(src_item))
+
+    ok <- tryCatch({
+      if (dir.exists(src_item)) {
+        copy_dir_recursive(
+          src_dir = src_item,
+          dst_dir = dst_item,
+          retries = retries,
+          wait_seconds = wait_seconds
+        )
+      } else {
+        if (!copy_one_path(
+          src = src_item,
+          dst = dst_item,
+          overwrite = TRUE,
+          retries = retries,
+          wait_seconds = wait_seconds
+        )) {
+          stop("file copy failed")
+        }
+      }
+      TRUE
+    }, error = function(e) {
+      cat_line("[copy] failed: ", src_item)
+      cat_line("[copy] reason: ", conditionMessage(e))
+      FALSE
+    })
+
+    if (!isTRUE(ok)) {
+      failures <- c(failures, basename(src_item))
+    }
+  }
+
+  if (length(failures)) {
+    stop("Failed to copy some source items: ", paste(failures, collapse = ", "))
+  }
+
   invisible(TRUE)
 }
 
@@ -276,11 +436,14 @@ strip_r_main <- function(
     keep_tcltk = FALSE,
     strip_pkg_docs = TRUE,
     req_file = NULL,
-    dry_run = FALSE
+    dry_run = FALSE,
+    refresh_runtime = TRUE
 ) {
   r_source <- safe_norm(r_source, mustWork = TRUE)
   framework_dir <- safe_norm(framework_dir, mustWork = TRUE)
-  output_dir <- file.path(framework_dir, "R-portable")
+  master_dir <- file.path(framework_dir, "R-portable-master")
+  runtime_dir <- file.path(framework_dir, "R-portable")
+  output_dir <- master_dir
 
   rscript_src <- find_rscript(r_source)
   r_exe_src <- find_r_exe(r_source)
@@ -319,7 +482,9 @@ strip_r_main <- function(
 
   cat_line("[strip] Source R: ", r_source)
   cat_line("[strip] R version: ", r_version_str)
-  cat_line("[strip] Output: ", output_dir)
+  cat_line("[strip] Master output: ", master_dir)
+  cat_line("[strip] Runtime refresh: ", refresh_runtime)
+  cat_line("[strip] Runtime dir: ", runtime_dir)
   cat_line("[strip] Keep Tcl/Tk runtime: ", keep_tcltk)
   cat_line("[strip] Strip package docs: ", strip_pkg_docs)
   cat_line("[strip] Verify req.txt packages: ", if (length(req_pkgs)) "YES" else "NO")
@@ -336,13 +501,19 @@ strip_r_main <- function(
 
   # 1. Copy full R
   if (!dry_run) {
-    if (dir.exists(output_dir)) {
-      cat_line("[strip] Removing existing R-portable/")
-      unlink(output_dir, recursive = TRUE, force = TRUE)
+    if (dir.exists(master_dir)) {
+      cat_line("[strip] Removing existing R-portable-master/")
+      unlink(master_dir, recursive = TRUE, force = TRUE)
     }
-    ensure_dir(output_dir)
-    cat_line("[strip] Copying full R into R-portable/")
-    copy_dir_contents(r_source, output_dir)
+    ensure_dir(master_dir)
+    cat_line("[strip] Copying full R into R-portable-master/")
+    copy_dir_contents(
+      src_dir = r_source,
+      dst_dir = master_dir,
+      clean_dest = FALSE,
+      retries = 2L,
+      wait_seconds = 0.25
+    )
   }
 
   # 2. Strip root documentation
@@ -411,6 +582,17 @@ strip_r_main <- function(
       cat_line("[strip] Verification FAILED")
       if (nzchar(verify$details)) cat_line("[strip] ", verify$details)
     }
+  }
+
+  if (!dry_run && isTRUE(verify$ok) && isTRUE(refresh_runtime)) {
+    cat_line("[strip] Refreshing runtime copy from R-portable-master to R-portable...")
+    copy_dir_contents(
+      src_dir = master_dir,
+      dst_dir = runtime_dir,
+      clean_dest = TRUE,
+      retries = 2L,
+      wait_seconds = 0.25
+    )
   }
 
   # 7. Manifest
@@ -483,11 +665,12 @@ if (identical(environment(), globalenv()) && !length(sys.frames()) > 1) {
       "Usage: Rscript strip_r.R --r_source \"C:/path/to/R-4.3.2\"\n",
       "\n",
       "Optional flags:\n",
-      "  --framework_dir   Where to put R-portable/ (default: script parent dir)\n",
-      "  --keep_tcltk      Keep Tcl/Tk runtime (default: no)\n",
-      "  --strip_pkg_docs  Strip docs from library packages (default: yes)\n",
-      "  --req_file        Optional req.txt for verification\n",
-      "  --dry_run         Show plan without copying\n"
+      "  --framework_dir     Where to put portable R folders (default: script parent dir)\n",
+      "  --keep_tcltk        Keep Tcl/Tk runtime (default: no)\n",
+      "  --strip_pkg_docs    Strip docs from library packages (default: yes)\n",
+      "  --req_file          Optional req.txt for verification\n",
+      "  --refresh_runtime   Also refresh R-portable from R-portable-master (default: yes)\n",
+      "  --dry_run           Show plan without copying\n"
     )
   }
 
@@ -510,6 +693,7 @@ if (identical(environment(), globalenv()) && !length(sys.frames()) > 1) {
     keep_tcltk = flag_value(args$keep_tcltk, FALSE),
     strip_pkg_docs = flag_value(args$strip_pkg_docs, TRUE),
     req_file = args$req_file %||% NULL,
-    dry_run = flag_value(args$dry_run, FALSE)
+    dry_run = flag_value(args$dry_run, FALSE),
+    refresh_runtime = flag_value(args$refresh_runtime, TRUE)
   )
 }
