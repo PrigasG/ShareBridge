@@ -1,0 +1,60 @@
+<html>
+<head>
+<title>Launch Application</title>
+<HTA:APPLICATION
+  APPLICATIONNAME="ShinyLauncher"
+  BORDER="none"
+  CAPTION="no"
+  SHOWINTASKBAR="no"
+  SINGLEINSTANCE="yes"
+  SYSMENU="no"
+  WINDOWSTATE="minimize"
+/>
+
+<script language="VBScript">
+On Error Resume Next
+
+Dim sh, fso, thisPath, root, bat, cfg, appTitle
+Set sh  = CreateObject("WScript.Shell")
+Set fso = CreateObject("Scripting.FileSystemObject")
+
+thisPath = document.location.pathname
+thisPath = Replace(thisPath, "file:///", "")
+thisPath = Replace(thisPath, "/", "\")
+thisPath = Replace(thisPath, "%20", " ")
+
+root = fso.GetParentFolderName(thisPath)
+bat  = root & "\run.bat"
+cfg  = root & "\app_meta.cfg"
+
+appTitle = "Shiny App Launcher"
+
+If fso.FileExists(cfg) Then
+  Dim ts, line
+  Set ts = fso.OpenTextFile(cfg, 1)
+  Do Until ts.AtEndOfStream
+    line = Trim(ts.ReadLine)
+    If UCase(Left(line, 9)) = "APP_NAME=" Then
+      appTitle = Mid(line, 10)
+      Exit Do
+    End If
+  Loop
+  ts.Close
+End If
+
+document.title = appTitle
+
+If Not fso.FileExists(bat) Then
+  MsgBox "run.bat was not found in:" & vbCrLf & root, 16, appTitle
+  window.close
+End If
+
+window.resizeTo 0,0
+window.moveTo -10000,-10000
+
+sh.Run """" & bat & """", 0, False
+window.close
+</script>
+</head>
+<body></body>
+</html>

@@ -1,0 +1,37 @@
+# Portable R (large, built locally via strip_r.R)
+R-portable/
+
+# Build outputs (generated per-app)
+dist/
+*_deploy/
+*.zip
+
+# Package caches
+packages/
+repo/
+
+# Logs
+logs/
+
+# Temp files
+*.tmp
+*.bak
+~$*
+
+# R session files
+.Rhistory
+.Rdata
+.RDataTmp
+*.Rproj.user/
+
+# OS files
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# OneDrive conflict copies
+*conflicted copy*
+.Rproj.user
+.RData
+.httr-oauth
+.quarto

@@ -1,0 +1,42 @@
+<html>
+<head>
+<title>ShareBridge Publisher</title>
+<HTA:APPLICATION
+  APPLICATIONNAME="ShareBridgePublisher"
+  BORDER="none"
+  CAPTION="no"
+  SHOWINTASKBAR="no"
+  SINGLEINSTANCE="yes"
+  SYSMENU="no"
+  WINDOWSTATE="minimize"
+/>
+
+<script language="VBScript">
+On Error Resume Next
+
+Dim sh, fso, thisPath, root, bat
+Set sh  = CreateObject("WScript.Shell")
+Set fso = CreateObject("Scripting.FileSystemObject")
+
+thisPath = document.location.pathname
+thisPath = Replace(thisPath, "file:///", "")
+thisPath = Replace(thisPath, "/", "\")
+thisPath = Replace(thisPath, "%20", " ")
+
+root = fso.GetParentFolderName(thisPath)
+bat  = root & "\publish.bat"
+
+If Not fso.FileExists(bat) Then
+  MsgBox "publish.bat was not found in:" & vbCrLf & root, 16, "ShareBridge Publisher"
+  window.close
+End If
+
+window.resizeTo 0,0
+window.moveTo -10000,-10000
+
+sh.Run """" & bat & """", 0, False
+window.close
+</script>
+</head>
+<body></body>
+</html>
