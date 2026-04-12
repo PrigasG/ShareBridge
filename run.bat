@@ -154,6 +154,22 @@ set "LTC_PORT=%LTC_PORT%"
 set "LTC_HOST=%LTC_HOST%"
 
 REM =========================================================
+REM Startup splash page
+REM =========================================================
+set "SPLASH_TEMPLATE=%RootDir%\build\splash.html"
+set "SPLASH_TMP=%TEMP%\sb_splash_%APP_ID_SAFE%.html"
+set "SB_LAUNCH_URL=http://sharebridge-%APP_ID_SAFE%.localhost:%LTC_PORT%"
+
+if exist "%SPLASH_TEMPLATE%" (
+  set "SB_SPLASH_TEMPLATE=%SPLASH_TEMPLATE%"
+  set "SB_SPLASH_TMP=%SPLASH_TMP%"
+  set "SB_APP_NAME=%APP_NAME%"
+  powershell -NoProfile -Command ^
+    "(Get-Content -LiteralPath $env:SB_SPLASH_TEMPLATE -Raw) -replace '__LAUNCH_URL__', $env:SB_LAUNCH_URL -replace '__APP_NAME__', $env:SB_APP_NAME | Set-Content -LiteralPath $env:SB_SPLASH_TMP -Encoding UTF8"
+  if exist "%SPLASH_TMP%" start "" "%SPLASH_TMP%"
+)
+
+REM =========================================================
 REM Run app
 REM =========================================================
 if defined RS (
@@ -167,12 +183,20 @@ if defined RS (
 set "RC=%errorlevel%"
 echo [END] %date% %time% (exitcode=%RC%) >> "%LOG%"
 
+REM =========================================================
+REM Crash landing page
+REM =========================================================
 if not "%RC%"=="0" (
-  echo.
-  echo %APP_NAME% did not launch successfully.
-  echo Check log:
-  echo "%LOG%"
-  pause
+  set "SB_CRASH_LOG=%LOG%"
+  set "SB_CRASH_APP=%APP_NAME%"
+  set "SB_CRASH_OUT=%TEMP%\sb_crash_%APP_ID_SAFE%.html"
+  powershell -NoProfile -Command ^
+    "$n = $env:SB_CRASH_APP; $lf = $env:SB_CRASH_LOG; $out = $env:SB_CRASH_OUT;" ^
+    "$lines = if (Test-Path $lf) { (Get-Content $lf -Tail 35) -join \"`n\" } else { 'Log not available.' };" ^
+    "$lines = $lines -replace '&','&amp;' -replace '<','&lt;' -replace '>','&gt;';" ^
+    "$h = '<!DOCTYPE html><html><head><meta charset=UTF-8><title>' + $n + ' - Error</title><style>body{font-family:Segoe UI,sans-serif;max-width:720px;margin:40px auto;padding:24px;background:#f8fafc;color:#1e293b}h2{color:#dc2626;margin-bottom:8px}.log{background:#0f172a;color:#e2e8f0;padding:20px;border-radius:10px;font:12px/1.6 Consolas,monospace;overflow:auto;white-space:pre-wrap;margin:12px 0}.meta{font-size:13px;color:#64748b;margin-top:12px}</style></head><body><h2>' + $n + ' did not start</h2><p>The app exited with an error. Check the last log lines below:</p><div class=log>' + $lines + '</div><p class=meta>Full log: ' + $lf + '</p></body></html>';" ^
+    "[System.IO.File]::WriteAllText($out, $h, [System.Text.Encoding]::UTF8);" ^
+    "Start-Process $out"
 )
 
 exit /b %RC%

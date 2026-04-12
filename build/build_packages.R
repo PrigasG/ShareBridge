@@ -147,6 +147,7 @@ build_packages_main <- function(
       to_install,
       lib = bundled_path,
       repos = cran_repo,
+      type = if (identical(.Platform$OS.type, "windows")) "win.binary" else "source",
       dependencies = install_dependencies,
       clean = TRUE
     )

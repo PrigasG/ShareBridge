@@ -1,0 +1,121 @@
+---
+title: "User Guide"
+description: "How end users run a ShareBridge app — no R installation required"
+---
+
+This guide is for the **end users** who receive a ShareBridge-deployed app. You can share this page directly with your team.
+
+::: callout-note
+You do not need to install R, RStudio, or any software. Everything you need is inside the folder you received.
+:::
+
+---
+
+## What you need
+
+- **Windows** (10 or 11)
+- **The deployment folder** — synced from SharePoint or OneDrive to your local computer
+- That is all
+
+---
+
+## Step 1 — Sync the folder
+
+Your team will share a folder via **SharePoint** or **OneDrive**. Before opening the app, make sure the folder has fully synced to your computer.
+
+**How to check:**
+
+- Open File Explorer and navigate to the synced folder
+- Look at the sync status icons next to the files
+- A **green tick** on all files means the sync is complete
+- A **blue spinning arrow** means files are still downloading — wait for it to finish
+
+::: callout-warning
+**Launching before sync completes is the most common cause of "package not found" errors.** Always wait for a full sync before opening the app.
+:::
+
+---
+
+## Step 2 — Open the app
+
+Inside the synced folder, find **`LaunchApp.hta`** and double-click it.
+
+A loading screen appears in your browser while the app starts up. The app will open automatically once it is ready — this usually takes 10–30 seconds on first launch.
+
+::: callout-tip
+**If your browser doesn't open automatically**, look for a tab that opened with an address like `http://sharebridge-myapp.localhost:3670`. Click it.
+:::
+
+---
+
+## Step 3 — Create a desktop shortcut (optional)
+
+On the very first launch, ShareBridge will ask:
+
+> *"Create a desktop shortcut for [App Name]?"*
+
+Click **Yes** and a shortcut will appear on your desktop. You can use it to open the app directly next time without navigating to the folder.
+
+If you missed the prompt or clicked No, you can manually create a shortcut by right-clicking `LaunchApp.hta` and choosing **Send to → Desktop (create shortcut)**.
+
+---
+
+## Everyday use
+
+Once set up, the workflow is:
+
+1. Double-click the desktop shortcut (or `LaunchApp.hta`)
+2. Wait ~10–30 seconds for the loading screen
+3. Use the app
+
+The app runs entirely on your local computer — no internet connection is needed after the initial sync.
+
+---
+
+## Troubleshooting
+
+### "App folder not found"
+
+You opened `LaunchApp.hta` from the wrong location — likely the ShareBridge framework folder rather than the deployment folder. Make sure you are opening it from inside the folder your team shared with you.
+
+### "Package not found" on startup
+
+The app tried to load a package that isn't bundled yet, or the folder hasn't fully synced. Try:
+
+1. Check that all files have synced (green ticks in File Explorer)
+2. Close the app window and relaunch
+3. If the problem persists, contact the person who published the app
+
+### App doesn't open after the loading screen
+
+A crash page will appear in your browser with the last lines from the error log. Note the error text and the log file path shown at the bottom, and share both with whoever manages the app.
+
+### Port conflict ("preferred port in use")
+
+ShareBridge will automatically fall back to a random port. The app should still open — the URL in the browser will be different from usual.
+
+### The loading screen shows "taking longer than expected"
+
+Click the **Open directly →** link on the loading page. If the app still doesn't load after 2 minutes, try:
+
+1. Check Task Manager for a stuck `Rscript.exe` process and end it
+2. Relaunch the app
+
+---
+
+## Frequently asked questions
+
+**Does the app need the internet to run?**
+No — once the folder is synced, the app runs entirely offline. An internet connection is only needed to sync updates from SharePoint.
+
+**Can I move the deployment folder to my desktop?**
+It is best to keep the folder in its synced SharePoint/OneDrive location. Moving it will break sync and may break the app's data paths.
+
+**Can multiple people run the app at the same time?**
+Yes — each person runs their own local copy of the app on their own computer. There is no shared server.
+
+**What does the URL `sharebridge-myapp.localhost:3670` mean?**
+It is a local address that only works on your computer. It is not accessible to anyone else on your network.
+
+**The desktop shortcut stopped working after I moved the folder.**
+Right-click the shortcut → Properties → update the target path to point to the new location of `LaunchApp.hta`.

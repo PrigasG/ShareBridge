@@ -282,32 +282,77 @@ css_app <- tags$head(
       .build-overlay {
         position: fixed;
         top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(255,255,255,0.88);
+        background: rgba(248,250,252,0.92);
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
         z-index: 9999;
+        backdrop-filter: blur(2px);
       }
-      .spinner {
-        width: 40px;
-        height: 40px;
-        border: 3px solid #e5e7eb;
-        border-top-color: #2563eb;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-        margin-bottom: 16px;
+      .overlay-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        padding: 44px 52px;
+        max-width: 500px;
+        width: 92%;
+        text-align: center;
+        box-shadow: 0 8px 40px rgba(15,23,42,0.12);
       }
-      @keyframes spin { to { transform: rotate(360deg); } }
-      .overlay-text {
+      .overlay-pct {
+        font-size: 48px;
+        font-weight: 700;
+        color: #1e293b;
+        line-height: 1;
+        letter-spacing: -1px;
+        margin-bottom: 6px;
+      }
+      .overlay-pct span { font-size: 28px; color: #64748b; font-weight: 500; }
+      .progress-bar-track {
+        width: 100%;
+        height: 8px;
+        background: #e5e7eb;
+        border-radius: 999px;
+        overflow: hidden;
+        margin: 14px 0 18px;
+      }
+      .progress-bar-fill {
+        height: 100%;
+        background: #2563eb;
+        border-radius: 999px;
+        transition: width 0.5s ease;
+        min-width: 6px;
+      }
+      .progress-bar-fill.phase-compiling {
+        background: linear-gradient(90deg, #2563eb, #7c3aed, #2563eb);
+        background-size: 200% 100%;
+        animation: shimmer-bar 2s linear infinite;
+      }
+      .progress-bar-fill.phase-done { background: #16a34a; }
+      @keyframes shimmer-bar {
+        0%   { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
+      .overlay-step {
         font-size: 15px;
-        font-weight: 500;
-        color: #374151;
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 6px;
       }
-      .overlay-sub {
-        font-size: 13px;
+      .overlay-detail {
+        font-size: 12px;
         color: #6b7280;
-        margin-top: 4px;
+        font-family: 'Consolas', 'Courier New', monospace;
+        max-width: 380px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin: 0 auto 4px;
+      }
+      .overlay-elapsed {
+        font-size: 12px;
+        color: #9ca3af;
+        margin-top: 10px;
       }
       .toolbar-row {
         display: flex;
@@ -444,11 +489,113 @@ css_collapsible <- tags$style(HTML("
 }
 "))
 
+css_features <- tags$style(HTML("
+  .validation-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    margin-top: 6px;
+  }
+  .validation-ok  { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+  .validation-err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+  .validation-warn{ background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+
+  .summary-panel {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+  }
+  .summary-panel h4 {
+    margin: 0 0 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 24px;
+  }
+  .summary-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    color: #374151;
+  }
+  .summary-row .dot { flex-shrink: 0; }
+  .summary-label { color: #6b7280; min-width: 110px; }
+  .summary-value { font-weight: 500; color: #111827; }
+
+  .health-list {
+    margin: 10px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .health-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 13px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    background: #f9fafb;
+  }
+  .health-item.hc-ok   { background: #f0fdf4; color: #166534; }
+  .health-item.hc-warn { background: #fffbeb; color: #92400e; }
+  .health-item.hc-fail { background: #fef2f2; color: #991b1b; }
+  .health-detail { font-size: 11px; margin-top: 2px; color: #6b7280; }
+  .hc-header {
+    font-size: 13px;
+    font-weight: 600;
+    margin: 12px 0 4px;
+    color: #374151;
+  }
+
+  .profile-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+    margin-top: 10px;
+  }
+  .profile-status {
+    font-size: 12px;
+    margin-top: 6px;
+    padding: 4px 10px;
+    border-radius: 6px;
+  }
+  .profile-status.ok  { background: #f0fdf4; color: #166534; }
+  .profile-status.err { background: #fef2f2; color: #991b1b; }
+
+  .btn-test-launch {
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    background: #0d9488;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+  .btn-test-launch:hover { background: #0f766e; }
+"))
+
 # UI---------------------------
 
 ui <- fluidPage(
   css_app,
   css_collapsible,
+  css_features,
 
   div(class = "header",
       div(
@@ -481,7 +628,8 @@ ui <- fluidPage(
               div(
                 class = "help-text",
                 "Folder containing app.R or ui.R + server.R, plus any supporting files such as www, modules, R, data, or config"
-              )
+              ),
+              uiOutput("source_validation_ui")
           ),
           div(class = "form-group",
               textInput(
@@ -573,7 +721,56 @@ ui <- fluidPage(
                     "Enable this for apps that render reports or downloadable documents"
                   )
               )
+            ),
+
+            div(class = "form-group", style = "margin-top: 14px;",
+                tags$label("External data directory (DATA_DIR) — optional"),
+                textInput(
+                  "data_dir",
+                  label = NULL,
+                  value = "",
+                  width = "100%",
+                  placeholder = "\\\\server\\share\\AppData  or  C:\\SharedData\\MyApp"
+                ),
+                div(
+                  class = "help-text",
+                  "Written to app_meta.cfg as DATA_DIR. At runtime ShareBridge sets SHAREBRIDGE_DATA_DIR. Use for app data that should live outside the synced deployment folder."
+                )
             )
+        )
+      ),
+
+      # Saved profiles
+      tags$details(
+        class = "collapsible-card",
+        tags$summary(HTML("<span>Saved profiles</span>")),
+        div(class = "collapsible-body",
+            div(class = "muted-section-note",
+                "Save your current build settings and reload them for future builds."
+            ),
+            div(class = "profile-row",
+                textInput(
+                  "profile_name_input",
+                  label = NULL,
+                  value = "",
+                  width = "100%",
+                  placeholder = "Profile name (e.g. My Dashboard - prod)"
+                ),
+                actionButton("save_profile", "Save", class = "btn-browse")
+            ),
+            div(class = "form-group", style = "margin-top: 12px;",
+                selectInput(
+                  "profile_select",
+                  "Saved profiles",
+                  choices = character(0),
+                  width = "100%"
+                )
+            ),
+            div(class = "toolbar-row",
+                actionButton("load_profile", "Load selected", class = "btn-log"),
+                actionButton("delete_profile", "Delete selected", class = "btn-log-danger")
+            ),
+            uiOutput("profile_status_ui")
         )
       ),
 
@@ -666,11 +863,14 @@ ui <- fluidPage(
       )
   ),
 
+  uiOutput("build_summary"),
+
   div(class = "build-action-wrap",
       uiOutput("build_button_ui")
   ),
 
-  uiOutput("build_result")
+  uiOutput("build_result"),
+  uiOutput("health_check_ui")
 )
 
 
@@ -695,6 +895,7 @@ server <- function(input, output, session) {
     zip_path = NULL,
     build_proc = NULL,
     build_log_file = NULL,
+    build_start_time = NULL,
     req_extra_file = NULL,
     app_features_file = NULL,
     selected_log_lines = character(0),
@@ -707,7 +908,14 @@ server <- function(input, output, session) {
     strip_r_log_lines = character(0),
     strip_r_proc = NULL,
     strip_r_log_file = NULL,
-    strip_r_bat_file = NULL
+    strip_r_bat_file = NULL,
+    # source validation
+    source_valid = FALSE,
+    source_validation_msg = "",
+    # health check
+    health_check_results = NULL,
+    # profiles
+    profiles_dir = NULL
   )
 
   # Session cleanup --------
@@ -893,6 +1101,103 @@ server <- function(input, output, session) {
       !is.null(rv$build_rscript_path)
   })
 
+  # Build progress parser --------
+  parse_build_progress <- function(log_lines) {
+    blank <- list(pct = 2, phase = "init", label = "Initializing...", detail = "")
+    if (!length(log_lines)) return(blank)
+
+    has  <- function(pat) any(grepl(pat, log_lines, fixed = TRUE))
+    last <- function(pat, fixed = FALSE) {
+      hits <- grep(pat, log_lines, value = TRUE, perl = !fixed, fixed = fixed)
+      if (length(hits)) tail(hits, 1) else ""
+    }
+
+    if (has("[publish] Done."))
+      return(list(pct = 100, phase = "done", label = "Build complete", detail = ""))
+    if (has("[build] Wrote manifest:"))
+      return(list(pct = 96, phase = "manifest", label = "Finalizing deployment...", detail = ""))
+    if (has("Load verification OK"))
+      return(list(pct = 92, phase = "verify", label = "Verifying packages load correctly...", detail = ""))
+    if (has("[build] Verifying package loadability"))
+      return(list(pct = 88, phase = "verify", label = "Verifying packages...", detail = ""))
+
+    # Source compilation — detect [N%] lines in recent output
+    recent <- tail(log_lines, 50)
+    src_pct_lines <- grep("^\\[\\s*\\d+%\\]", recent, value = TRUE, perl = TRUE)
+    if (length(src_pct_lines)) {
+      src_pct <- as.integer(sub("^\\[\\s*(\\d+)%\\].*", "\\1", tail(src_pct_lines, 1)))
+      pkg_line <- last("installing \\*source\\* package '([^']+)'")
+      pkg_name <- if (nzchar(pkg_line)) sub(".*'([^']+)'.*", "\\1", pkg_line) else "package"
+      src_list_line <- last("installing the source packages", fixed = TRUE)
+      n_src <- if (nzchar(src_list_line)) {
+        length(strsplit(gsub("['\"]", "", sub("installing the source packages ", "", src_list_line)), ",\\s*")[[1]])
+      } else 1L
+      n_src_done <- length(grep("^\\* DONE \\(", recent, perl = TRUE))
+      per_pkg <- 25L / max(n_src, 1L)
+      scaled <- as.integer(60 + n_src_done * per_pkg + (src_pct / 100) * per_pkg)
+      scaled <- max(60L, min(85L, scaled))
+      return(list(
+        pct    = scaled,
+        phase  = "compiling",
+        label  = sprintf("Compiling %s from source... (%d%%)", pkg_name, src_pct),
+        detail = "Source compilation is slower — this is a one-time cost for this version"
+      ))
+    }
+
+    # Binary package install / download
+    n_done <- length(grep("successfully unpacked and MD5 sums checked|successfully installed",
+                          log_lines, fixed = FALSE, perl = TRUE))
+    if (has("[build] Installing missing packages") || n_done > 0L) {
+      req_line  <- last("\\[build\\] Requested packages:\\s*(\\d+)")
+      n_req     <- if (nzchar(req_line)) as.integer(sub(".*:\\s*", "", req_line)) else 0L
+      dep_line  <- last("also installing the dependencies", fixed = TRUE)
+      n_deps    <- if (nzchar(dep_line)) {
+        length(strsplit(gsub("['\"]", "", sub("also installing the dependencies ", "", dep_line)), ",\\s*")[[1]])
+      } else 0L
+      src_line  <- last("installing the source packages", fixed = TRUE)
+      n_src_tot <- if (nzchar(src_line)) {
+        length(strsplit(gsub("['\"]", "", sub("installing the source packages ", "", src_line)), ",\\s*")[[1]])
+      } else 0L
+      n_total   <- n_req + n_deps + n_src_tot
+
+      if (n_total > 0L) {
+        pct   <- as.integer(35 + (n_done / n_total) * 50)
+        pct   <- min(pct, 82L)
+        label <- sprintf("Installing packages (%d of %d)...", n_done, n_total)
+      } else {
+        pct   <- if (n_done > 0L) min(40L + n_done * 2L, 60L) else 38L
+        label <- if (n_done > 0L) sprintf("Installing packages (%d done)...", n_done) else "Downloading packages..."
+      }
+
+      # Friendly detail line
+      detail_raw <- last("trying URL|successfully unpacked|successfully installed")
+      detail <- if (nzchar(detail_raw)) {
+        detail_raw <- sub("trying URL '.*/(.*\\.zip)'$", "Downloading \\1...", detail_raw)
+        detail_raw <- sub("package '([^']+)' successfully (unpacked|installed).*", "\u2713 \\1", detail_raw)
+        trimws(detail_raw)
+      } else ""
+      return(list(pct = pct, phase = "installing", label = label, detail = detail))
+    }
+
+    if (has("[publish] Building bundled package library"))
+      return(list(pct = 32, phase = "building", label = "Preparing package library...", detail = ""))
+    if (has("[publish] req.txt written")) {
+      pkg_detail <- last("\\[publish\\] Packages:")
+      pkg_detail <- trimws(sub("\\[publish\\] Packages:\\s*", "", pkg_detail))
+      return(list(pct = 26, phase = "deps", label = "Dependencies detected", detail = pkg_detail))
+    }
+    if (has("[copy] robocopy"))
+      return(list(pct = 18, phase = "copy_r", label = "Copying portable R...", detail = ""))
+    if (has("[publish] Portable R source:"))
+      return(list(pct = 12, phase = "copy_r", label = "Locating portable R...", detail = ""))
+    if (has("[publish] Output dir reset complete"))
+      return(list(pct = 10, phase = "setup", label = "Setting up output folder...", detail = ""))
+    if (has("[ui] Starting background build process"))
+      return(list(pct = 5, phase = "start", label = "Build started...", detail = ""))
+
+    blank
+  }
+
   # Build helpers --------
   append_log_lines <- function(lines) {
     lines <- as.character(lines)
@@ -954,6 +1259,12 @@ server <- function(input, output, session) {
     if (!is.null(rv$build_proc)) try(rv$build_proc$kill(), silent = TRUE)
     rv$build_proc <- NULL
     refresh_log_choices(select_latest = TRUE)
+
+    if (rv$build_success && !is.null(rv$output_path)) {
+      rv$health_check_results <- run_health_check(rv$output_path)
+    } else {
+      rv$health_check_results <- NULL
+    }
   }
 
   # App subdirectory discovery (for advanced features) --------
@@ -969,6 +1280,257 @@ server <- function(input, output, session) {
     sort(unique(dirs[!dirs %in% excluded]))
   })
 
+  # Profiles helpers --------
+  profile_fields <- function() {
+    list(
+      source_dir             = trimws(input$source_dir %||% ""),
+      app_name               = trimws(input$app_name %||% ""),
+      output_dir             = trimws(input$output_dir %||% ""),
+      extra_packages         = trimws(input$extra_packages %||% ""),
+      zip_output             = isTRUE(input$zip_output),
+      build_offline_repo     = isTRUE(input$build_offline_repo),
+      enable_write_mode      = isTRUE(input$enable_write_mode),
+      include_pandoc         = isTRUE(input$include_pandoc),
+      bundle_rmarkdown_support = isTRUE(input$bundle_rmarkdown_support),
+      data_dir               = trimws(input$data_dir %||% "")
+    )
+  }
+
+  profile_path <- function(name) {
+    safe <- gsub("[^A-Za-z0-9 _\\-]", "_", name)
+    safe <- gsub("_+", "_", trimws(safe))
+    file.path(rv$profiles_dir, paste0(safe, ".json"))
+  }
+
+  list_profiles <- function() {
+    if (is.null(rv$profiles_dir) || !dir.exists(rv$profiles_dir)) return(character(0))
+    files <- list.files(rv$profiles_dir, pattern = "\\.json$", full.names = FALSE)
+    sort(sub("\\.json$", "", files))
+  }
+
+  refresh_profile_choices <- function() {
+    choices <- list_profiles()
+    updateSelectInput(session, "profile_select",
+                      choices = if (length(choices)) choices else character(0),
+                      selected = if (length(choices)) choices[1] else character(0))
+  }
+
+  observeEvent(input$save_profile, {
+    name <- trimws(input$profile_name_input %||% "")
+    if (!nzchar(name)) {
+      output$profile_status_ui <- renderUI({
+        div(class = "profile-status err", "Enter a profile name first.")
+      })
+      return()
+    }
+    if (is.null(rv$profiles_dir)) return()
+
+    tryCatch({
+      jsonlite::write_json(profile_fields(), path = profile_path(name),
+                           auto_unbox = TRUE, pretty = TRUE)
+      refresh_profile_choices()
+      updateSelectInput(session, "profile_select", selected = name)
+      output$profile_status_ui <- renderUI({
+        div(class = "profile-status ok", paste0("Saved: ", name))
+      })
+    }, error = function(e) {
+      output$profile_status_ui <- renderUI({
+        div(class = "profile-status err", paste("Save failed:", conditionMessage(e)))
+      })
+    })
+  })
+
+  observeEvent(input$load_profile, {
+    name <- input$profile_select %||% ""
+    if (!nzchar(name) || is.null(rv$profiles_dir)) return()
+
+    path <- profile_path(name)
+    if (!file.exists(path)) {
+      output$profile_status_ui <- renderUI({
+        div(class = "profile-status err", "Profile file not found.")
+      })
+      return()
+    }
+
+    tryCatch({
+      p <- jsonlite::read_json(path, simplifyVector = TRUE)
+      if (!is.null(p$source_dir))  updateTextInput(session, "source_dir",  value = p$source_dir)
+      if (!is.null(p$app_name))    updateTextInput(session, "app_name",    value = p$app_name)
+      if (!is.null(p$output_dir))  updateTextInput(session, "output_dir",  value = p$output_dir)
+      if (!is.null(p$extra_packages)) updateTextAreaInput(session, "extra_packages", value = p$extra_packages)
+      if (!is.null(p$zip_output))             updateCheckboxInput(session, "zip_output",             value = isTRUE(p$zip_output))
+      if (!is.null(p$build_offline_repo))     updateCheckboxInput(session, "build_offline_repo",     value = isTRUE(p$build_offline_repo))
+      if (!is.null(p$enable_write_mode))      updateCheckboxInput(session, "enable_write_mode",      value = isTRUE(p$enable_write_mode))
+      if (!is.null(p$include_pandoc))         updateCheckboxInput(session, "include_pandoc",         value = isTRUE(p$include_pandoc))
+      if (!is.null(p$bundle_rmarkdown_support)) updateCheckboxInput(session, "bundle_rmarkdown_support", value = isTRUE(p$bundle_rmarkdown_support))
+      if (!is.null(p$data_dir))    updateTextInput(session, "data_dir",    value = p$data_dir %||% "")
+      output$profile_status_ui <- renderUI({
+        div(class = "profile-status ok", paste0("Loaded: ", name))
+      })
+    }, error = function(e) {
+      output$profile_status_ui <- renderUI({
+        div(class = "profile-status err", paste("Load failed:", conditionMessage(e)))
+      })
+    })
+  })
+
+  observeEvent(input$delete_profile, {
+    name <- input$profile_select %||% ""
+    if (!nzchar(name) || is.null(rv$profiles_dir)) return()
+
+    path <- profile_path(name)
+    try(unlink(path, force = TRUE), silent = TRUE)
+    refresh_profile_choices()
+    output$profile_status_ui <- renderUI({
+      div(class = "profile-status ok", paste0("Deleted: ", name))
+    })
+  })
+
+  output$profile_status_ui <- renderUI({ NULL })
+
+  # Health check helper --------
+  run_health_check <- function(output_dir) {
+    if (is.null(output_dir) || !dir.exists(output_dir)) return(NULL)
+
+    results <- list()
+    add_check <- function(id, label, ok, detail = NULL, critical = TRUE) {
+      results[[id]] <<- list(label = label, ok = ok, detail = detail, critical = critical)
+    }
+
+    for (f in c("LaunchApp.hta", "run.bat", "run.R", "req.txt", "app_meta.cfg", "VERSION")) {
+      add_check(paste0("f_", f), f, file.exists(file.path(output_dir, f)))
+    }
+
+    add_check("app_dir", "app/ directory", dir.exists(file.path(output_dir, "app")))
+
+    pkg_dir  <- file.path(output_dir, "packages")
+    req_file <- file.path(output_dir, "req.txt")
+    add_check("packages_dir", "packages/ directory", dir.exists(pkg_dir))
+
+    if (file.exists(req_file) && dir.exists(pkg_dir)) {
+      req_pkgs <- trimws(readLines(req_file, warn = FALSE))
+      req_pkgs <- req_pkgs[nzchar(req_pkgs) & !grepl("^#", req_pkgs)]
+      installed_pkgs <- basename(list.dirs(pkg_dir, recursive = FALSE, full.names = FALSE))
+      missing_pkgs <- setdiff(req_pkgs, installed_pkgs)
+      detail <- if (length(missing_pkgs)) {
+        paste("Missing:", paste(head(missing_pkgs, 5), collapse = ", "),
+              if (length(missing_pkgs) > 5) paste0("… +", length(missing_pkgs) - 5, " more") else "")
+      } else NULL
+      add_check("pkgs_complete",
+                sprintf("All %d required packages bundled", length(req_pkgs)),
+                length(missing_pkgs) == 0, detail = detail)
+    }
+
+    add_check("portable_r", "Portable R bundled (R/)",
+              dir.exists(file.path(output_dir, "R")), critical = FALSE)
+
+    pandoc_dir <- file.path(output_dir, "pandoc")
+    if (dir.exists(pandoc_dir)) {
+      has_exe <- file.exists(file.path(pandoc_dir, "pandoc.exe"))
+      add_check("pandoc_exe", "pandoc.exe present in pandoc/", has_exe,
+                detail = if (!has_exe) "Pandoc stub folder exists but pandoc.exe not placed yet" else NULL,
+                critical = FALSE)
+    }
+
+    results
+  }
+
+  output$health_check_ui <- renderUI({
+    res <- rv$health_check_results
+    if (is.null(res) || !length(res)) return(NULL)
+
+    items <- lapply(res, function(chk) {
+      cls <- if (isTRUE(chk$ok)) "hc-ok" else if (isTRUE(chk$critical)) "hc-fail" else "hc-warn"
+      icon <- if (isTRUE(chk$ok)) "\u2713" else "\u2717"
+      div(class = paste("health-item", cls),
+          span(style = "font-weight:600; width:14px; flex-shrink:0;", icon),
+          div(
+            div(chk$label),
+            if (!is.null(chk$detail)) div(class = "health-detail", chk$detail)
+          )
+      )
+    })
+
+    n_fail  <- sum(!vapply(res, function(x) isTRUE(x$ok) || !isTRUE(x$critical), logical(1)))
+    n_warn  <- sum(!vapply(res, function(x) isTRUE(x$ok), logical(1))) - n_fail
+    summary_cls <- if (n_fail > 0) "error" else "success"
+    summary_msg <- if (n_fail > 0) {
+      paste(n_fail, "critical issue(s) detected")
+    } else if (n_warn > 0) {
+      paste(n_warn, "warning(s) — review below")
+    } else {
+      "Deployment looks healthy"
+    }
+
+    div(
+      div(class = paste("result-bar", summary_cls), style = "margin-top: 10px;",
+          div(class = "result-info",
+              strong("Health check: "), summary_msg)
+      ),
+      div(class = "health-list", do.call(tagList, items))
+    )
+  })
+
+  # Test launch handler --------
+  observeEvent(input$test_launch, {
+    req(rv$build_success, !is.null(rv$output_path))
+    launch_hta <- normalizePath(
+      file.path(rv$output_path, "LaunchApp.hta"),
+      winslash = "\\", mustWork = FALSE)
+    if (file.exists(launch_hta)) {
+      shell.exec(launch_hta)
+    } else {
+      run_bat <- normalizePath(
+        file.path(rv$output_path, "run.bat"),
+        winslash = "\\", mustWork = FALSE)
+      if (file.exists(run_bat)) shell.exec(run_bat)
+    }
+  })
+
+  # Build summary renderer --------
+  output$build_summary <- renderUI({
+    if (!can_build() || rv$building || rv$build_done) return(NULL)
+
+    app_id_val <- gsub("[^A-Za-z0-9_]+", "_",
+                       gsub("_+", "_", trimws(input$app_name %||% "")))
+    app_id_val <- gsub("^_|_$", "", app_id_val)
+
+    has_portable_r <- !is.null(rv$framework_dir) && (
+      dir.exists(file.path(rv$framework_dir, "R-portable-master")) ||
+        dir.exists(file.path(rv$framework_dir, "R-portable"))
+    )
+
+    extra_raw <- trimws(unlist(strsplit(input$extra_packages %||% "", "\n")))
+    extra_pkgs <- unique(extra_raw[nzchar(extra_raw)])
+    total_pkgs <- length(unique(c(rv$detected_pkgs, extra_pkgs)))
+
+    make_row <- function(label, value, dot_cls = NULL) {
+      div(class = "summary-row",
+          if (!is.null(dot_cls)) span(class = paste("dot", dot_cls)),
+          span(class = "summary-label", label),
+          span(class = "summary-value", value)
+      )
+    }
+
+    div(class = "summary-panel",
+        tags$h4("Build summary"),
+        div(class = "summary-grid",
+            make_row("App name",    input$app_name),
+            make_row("App ID",      if (nzchar(app_id_val)) app_id_val else "\u2014"),
+            make_row("Packages",    paste(total_pkgs, "total")),
+            make_row("Portable R",  if (has_portable_r) "bundled" else "not found",
+                     if (has_portable_r) "dot-ok" else "dot-warn"),
+            make_row("Zip output",  if (isTRUE(input$zip_output)) "yes" else "no"),
+            make_row("Offline repo",if (isTRUE(input$build_offline_repo)) "yes" else "no"),
+            make_row("Pandoc stub", if (isTRUE(input$include_pandoc)) "yes" else "no"),
+            make_row("DATA_DIR",    {
+              d <- trimws(input$data_dir %||% "")
+              if (nzchar(d)) d else "(none)"
+            })
+        )
+    )
+  })
+
   # Initialize --------
   observeEvent(TRUE, {
     tryCatch({
@@ -976,6 +1538,11 @@ server <- function(input, output, session) {
       rv$publisher_env <- load_publisher(rv$framework_dir)
       rv$rscript_path <- find_rscript(rv$framework_dir)
       rv$build_rscript_path <- find_build_rscript(rv$framework_dir)
+      rv$profiles_dir <- file.path(rv$framework_dir, "profiles")
+      if (!dir.exists(rv$profiles_dir)) {
+        dir.create(rv$profiles_dir, recursive = TRUE, showWarnings = FALSE)
+      }
+      refresh_profile_choices()
     }, error = function(e) {
       rv$framework_dir <- NULL
       rv$publisher_env <- NULL
@@ -1029,10 +1596,31 @@ server <- function(input, output, session) {
   # Build overlay --------
   output$build_overlay <- renderUI({
     if (!rv$building) return(NULL)
+
+    prog    <- parse_build_progress(rv$log_lines)
+    pct     <- prog$pct %||% 0L
+    phase   <- prog$phase %||% "init"
+    label   <- prog$label %||% "Building..."
+    detail  <- prog$detail %||% ""
+
+    elapsed <- ""
+    if (!is.null(rv$build_start_time)) {
+      secs <- as.integer(difftime(Sys.time(), rv$build_start_time, units = "secs"))
+      elapsed <- if (secs < 60) sprintf("%ds", secs) else sprintf("%dm %ds", secs %/% 60L, secs %% 60L)
+    }
+
+    fill_cls <- paste("progress-bar-fill", paste0("phase-", phase))
+
     div(class = "build-overlay",
-        div(class = "spinner"),
-        div(class = "overlay-text", "Building deployment..."),
-        div(class = "overlay-sub", "Please wait while the build finishes.")
+        div(class = "overlay-card",
+            div(class = "overlay-pct", pct, tags$span("%")),
+            div(class = "progress-bar-track",
+                div(class = fill_cls, style = sprintf("width: %d%%", max(pct, 2L)))
+            ),
+            div(class = "overlay-step", label),
+            if (nzchar(detail)) div(class = "overlay-detail", detail),
+            if (nzchar(elapsed)) div(class = "overlay-elapsed", paste("Elapsed:", elapsed))
+        )
     )
   })
 
@@ -1071,6 +1659,10 @@ server <- function(input, output, session) {
     rv$output_path <- NULL
     rv$zip_path <- NULL
     rv$build_proc <- NULL
+    rv$health_check_results <- NULL
+    rv$source_valid <- FALSE
+    rv$source_validation_msg <- ""
+    rv$build_start_time <- NULL
 
     cleanup_temp_files()
   })
@@ -1106,24 +1698,58 @@ server <- function(input, output, session) {
     }
   })
 
-  # Detect dependencies --------
+  # Detect dependencies + validate source structure --------
   observeEvent(input$source_dir, {
     src <- trimws(input$source_dir %||% "")
     if (!nzchar(src) || !dir.exists(src)) {
       rv$detected_pkgs <- character(0)
+      rv$source_valid <- FALSE
+      rv$source_validation_msg <- ""
       return()
     }
     env <- rv$publisher_env
     if (is.null(env)) return()
 
+    # Structure validation
     tryCatch({
-      pkgs <- env$detect_dependencies(normalizePath(src, winslash = "/", mustWork = TRUE))
-      pkgs <- unique(c("shiny", pkgs))
-      rv$detected_pkgs <- sort(pkgs)
+      mode <- env$detect_app_mode(normalizePath(src, winslash = "/", mustWork = TRUE))
+      rv$source_valid <- TRUE
+      rv$source_validation_msg <- switch(mode,
+        "app.R"     = "app.R found",
+        "ui_server" = "ui.R + server.R found",
+        paste("Valid:", mode)
+      )
     }, error = function(e) {
-      rv$detected_pkgs <- "shiny"
+      rv$source_valid <- FALSE
+      rv$source_validation_msg <- conditionMessage(e)
     })
+
+    # Dependency detection (only if valid)
+    if (rv$source_valid) {
+      tryCatch({
+        pkgs <- env$detect_dependencies(normalizePath(src, winslash = "/", mustWork = TRUE))
+        pkgs <- unique(c("shiny", pkgs))
+        rv$detected_pkgs <- sort(pkgs)
+      }, error = function(e) {
+        rv$detected_pkgs <- "shiny"
+      })
+    } else {
+      rv$detected_pkgs <- character(0)
+    }
   }, ignoreInit = FALSE)
+
+  output$source_validation_ui <- renderUI({
+    src <- trimws(input$source_dir %||% "")
+    if (!nzchar(src)) return(NULL)
+    if (!dir.exists(src)) {
+      return(span(class = "validation-badge validation-err", "Folder not found"))
+    }
+    if (rv$source_valid) {
+      span(class = "validation-badge validation-ok", rv$source_validation_msg)
+    } else {
+      span(class = "validation-badge validation-err", rv$source_validation_msg)
+    }
+  })
 
   output$detected_packages <- renderUI({
     pkgs <- rv$detected_pkgs
@@ -1159,6 +1785,7 @@ server <- function(input, output, session) {
     !rv$building &&
       nzchar(input$source_dir %||% "") &&
       dir.exists(input$source_dir %||% "") &&
+      isTRUE(rv$source_valid) &&
       nzchar(input$app_name %||% "") &&
       nzchar(input$output_dir %||% "") &&
       !is.null(rv$build_rscript_path)
@@ -1194,6 +1821,7 @@ server <- function(input, output, session) {
     rv$log_lines <- character(0)
     rv$output_path <- NULL
     rv$zip_path <- NULL
+    rv$build_start_time <- Sys.time()
 
     cleanup_temp_files()
 
@@ -1267,6 +1895,10 @@ server <- function(input, output, session) {
     if (isTRUE(input$build_offline_repo)) {
       cli_args <- c(cli_args, "--build_offline_repo")
     }
+    data_dir_val <- trimws(input$data_dir %||% "")
+    if (nzchar(data_dir_val)) {
+      cli_args <- c(cli_args, "--data_dir", data_dir_val)
+    }
 
     # Write startup log --------
     rv$log_lines <- c(
@@ -1282,6 +1914,7 @@ server <- function(input, output, session) {
       paste("[ui] include_pandoc =", isTRUE(input$include_pandoc)),
       paste("[ui] bundle_rmarkdown_support =", isTRUE(input$bundle_rmarkdown_support)),
       paste("[ui] app_features_file =", rv$app_features_file),
+      paste("[ui] data_dir =", trimws(input$data_dir %||% "")),
       "[ui] Starting background build process..."
     )
     writeLines(rv$log_lines, rv$build_log_file, useBytes = TRUE)
@@ -1628,10 +2261,13 @@ server <- function(input, output, session) {
               paste("Output:", rv$output_path),
               if (!is.null(rv$zip_path)) tagList(br(), paste("Zip:", rv$zip_path))
           ),
-          if (!is.null(rv$zip_path) && file.exists(rv$zip_path)) {
-            downloadButton("download_zip", "Download zip",
-                           style = "background:#16a34a;color:white;border:none;border-radius:6px;padding:8px 16px;font-size:13px;")
-          }
+          tagList(
+            if (!is.null(rv$zip_path) && file.exists(rv$zip_path)) {
+              downloadButton("download_zip", "Download zip",
+                             style = "background:#16a34a;color:white;border:none;border-radius:6px;padding:8px 16px;font-size:13px;margin-right:6px;")
+            },
+            actionButton("test_launch", "Test launch", class = "btn-test-launch")
+          )
       )
     } else {
       div(class = "result-bar error",

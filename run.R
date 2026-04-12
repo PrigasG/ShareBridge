@@ -62,6 +62,33 @@ host      <- "127.0.0.1"
 pref_port <- suppressWarnings(as.integer(cfg$PREFERRED_PORT %||% "3402"))
 if (is.na(pref_port) || pref_port <= 0) pref_port <- 3402
 
+# R version mismatch guard
+version_file <- file.path(rd, "VERSION")
+if (file.exists(version_file)) {
+  ver_lines <- readLines(version_file, warn = FALSE)
+  bundled_mm_match <- grep("^RVersionMajorMinor=", ver_lines, value = TRUE)
+  if (length(bundled_mm_match)) {
+    bundled_mm <- trimws(sub("^RVersionMajorMinor=", "", bundled_mm_match[1]))
+    current_full <- paste(R.version$major, R.version$minor, sep = ".")
+    current_mm   <- sub("^(\\d+\\.\\d+).*$", "\\1", current_full)
+    if (nzchar(bundled_mm) && !identical(current_mm, bundled_mm)) {
+      message(sprintf(
+        "[run] WARNING: R version mismatch — deployment built with R %s, currently running R %s.",
+        bundled_mm, current_mm
+      ))
+    } else if (nzchar(bundled_mm)) {
+      message(sprintf("[run] R version OK: %s", current_mm))
+    }
+  }
+}
+
+# DATA_DIR — expose as env var if configured in app_meta.cfg
+data_dir_cfg <- cfg$DATA_DIR %||% ""
+if (nzchar(data_dir_cfg)) {
+  Sys.setenv(SHAREBRIDGE_DATA_DIR = data_dir_cfg)
+  message(sprintf("[run] DATA_DIR: %s", data_dir_cfg))
+}
+
 message(sprintf("[run] App: %s", app_name))
 message(sprintf("[run] AppDir: %s", wd))
 

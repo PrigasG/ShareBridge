@@ -52,6 +52,31 @@ End If
 window.resizeTo 0,0
 window.moveTo -10000,-10000
 
+' Desktop shortcut — offer once per deployment folder
+Dim markerFile
+markerFile = root & "\.shortcut_offered"
+
+If Not fso.FileExists(markerFile) Then
+  Dim answer
+  answer = MsgBox("Create a desktop shortcut for " & appTitle & "?", _
+                  vbYesNo + vbQuestion, appTitle)
+  ' Write marker so we only ask once regardless of answer
+  Dim tsMarker
+  Set tsMarker = fso.CreateTextFile(markerFile, True)
+  tsMarker.Close
+
+  If answer = vbYes Then
+    Dim desktopPath, oShortcut
+    desktopPath = sh.SpecialFolders("Desktop")
+    Set oShortcut = sh.CreateShortcut(desktopPath & "\" & appTitle & ".lnk")
+    oShortcut.TargetPath = "mshta.exe"
+    oShortcut.Arguments = Chr(34) & thisPath & Chr(34)
+    oShortcut.WorkingDirectory = root
+    oShortcut.Description = appTitle
+    oShortcut.Save
+  End If
+End If
+
 sh.Run """" & bat & """", 0, False
 window.close
 </script>
