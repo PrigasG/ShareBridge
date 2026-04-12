@@ -1,0 +1,259 @@
+---
+title: "Publisher Guide"
+description: "Complete reference for building and distributing Shiny app deployments with ShareBridge"
+---
+
+This guide covers every feature of the ShareBridge Publisher in depth. For a quick walkthrough, see [Getting Started](getting-started.html).
+
+---
+
+## Launching the Publisher
+
+| Method | When to use |
+|---|---|
+| `PublishApp.hta` | Default — opens hidden, no console window |
+| `publish.bat` | Fallback if `.hta` files are blocked by Group Policy |
+
+Both open the same Shiny-based Publisher UI in your default browser.
+
+::: callout-important
+Always launch from inside the **ShareBridge framework root** — not from inside a deployed app folder.
+:::
+
+---
+
+## Source app
+
+### Supported layouts
+
+ShareBridge supports two standard Shiny structures:
+
+**Single-file:**
+```
+my_app/
+└── app.R
+```
+
+**Split:**
+```
+my_app/
+├── ui.R
+└── server.R
+```
+
+Supporting folders are copied automatically: `www/`, `R/`, `modules/`, `data/`, `config/`, and any other files or subdirectories in the source.
+
+### Validation badge
+
+When you select a source folder, ShareBridge immediately validates it and shows a badge:
+
+- 🟢 **`app.R found`** or **`ui.R + server.R found`** — valid, build can proceed
+- 🔴 **Error message** — folder is missing required entry points, build is blocked
+
+---
+
+## Package detection
+
+### How it works
+
+ShareBridge scans all `.R`, `.Rmd`, and `.qmd` files in the source folder for:
+
+- `library(pkg)` and `require(pkg)`
+- `pkg::function()` and `pkg:::function()`
+
+**Primary scanner:** `renv::dependencies()` when renv is installed
+**Fallback:** built-in regex parser
+
+`shiny` is always included regardless of what the scanner finds.
+
+### What the scanner misses
+
+| Pattern | Example |
+|---|---|
+| Dynamic loading | `lapply(pkgs, library, character.only = TRUE)` |
+| String-constructed names | `library(paste0("data", ".table"))` |
+| Scripts sourced from outside the app folder | `source("../shared/helpers.R")` |
+
+Add these manually in the **Additional packages** box (one per line).
+
+---
+
+## Output options
+
+### Output folder
+
+The output folder is where the complete deployable folder is written. It is auto-filled as `<parent_of_framework>/<app_name>_deploy` but you can set it anywhere.
+
+::: callout-warning
+**The output folder is completely reset on every build.** Do not point it at a folder containing other important files.
+:::
+
+### Create zip file
+
+When enabled, ShareBridge zips the output folder after building. The zip file appears at `<output_dir>.zip` and is available for download directly from the Publisher UI.
+
+### Build offline repo
+
+When enabled, ShareBridge downloads a copy of all bundled packages into a `repo/` folder inside the deployment. At runtime, `run.R` installs from this local repo first, falling back to CRAN only if the local repo is missing.
+
+Use this when your end users have no internet access.
+
+---
+
+## Advanced app features
+
+### Enable write-capable app mode
+
+Ensures selected app subdirectories exist inside the deployed `app/` folder. Useful for apps that write to `data/`, `uploads/`, `cache/`, or `tmp/`.
+
+When you enable this option, ShareBridge scans the source folder for subdirectories and presents them as checkboxes. Select the ones that need to exist (and be writable) in the deployment.
+
+::: callout-note
+This only **creates** the directories — it does not modify your app code. Your app must still reference and write to those folders.
+:::
+
+### Include Pandoc runtime
+
+Creates a `pandoc/` stub folder in the deployment and adds R Markdown support packages (`rmarkdown`, `knitr`, etc.) to `req.txt`.
+
+At runtime, if `pandoc/pandoc.exe` is present, ShareBridge sets `RSTUDIO_PANDOC` automatically so rmarkdown finds it.
+
+**Important:** ShareBridge does not copy Pandoc automatically. After building, place a Pandoc installation into the `pandoc/` folder manually. Download from [pandoc.org](https://pandoc.org/installing.html).
+
+### External data directory (DATA_DIR)
+
+For apps that write data which should **not** live inside the synced SharePoint folder (e.g. frequently written outputs, user uploads), set a `DATA_DIR` path here.
+
+- Accepts UNC paths (`\\server\share\AppData`) or local paths
+- Written to `app_meta.cfg` as `DATA_DIR=`
+- Available to your app at runtime as the environment variable `SHAREBRIDGE_DATA_DIR`
+
+Example in your app code:
+
+```r
+data_dir <- Sys.getenv("SHAREBRIDGE_DATA_DIR", unset = "data")
+```
+
+---
+
+## Build summary panel
+
+Before you click **Build deployment**, a summary panel shows a snapshot of what will be built:
+
+| Field | Description |
+|---|---|
+| App name | Display name used in launchers |
+| App ID | Sanitized ID used for port derivation and URLs |
+| Packages | Total count (detected + extras) |
+| Portable R | Whether `R-portable-master/` is found in the framework |
+| Zip output | Whether a zip will be created |
+| Offline repo | Whether a local CRAN mirror will be built |
+| Pandoc stub | Whether the pandoc folder will be created |
+| DATA_DIR | External data path if set |
+
+---
+
+## Build progress
+
+The overlay tracks each build phase with a live percentage, step label, and elapsed time:
+
+- **Binary installs** show the current package being downloaded
+- **Source compilation** shows the C/C++ compile percentage and triggers a shimmer animation on the progress bar — this is normal and expected for packages that don't have a Windows binary
+- **Elapsed time** helps set expectations on first builds
+
+::: callout-tip
+Source compilation only happens on the first build or after an R version upgrade. Subsequent builds install binaries from the cache.
+:::
+
+---
+
+## Health check
+
+After every successful build, ShareBridge runs an automatic health check:
+
+| Check | Critical |
+|---|---|
+| Required files present (`LaunchApp.hta`, `run.bat`, `run.R`, `req.txt`, `app_meta.cfg`, `VERSION`) | Yes |
+| `app/` directory exists | Yes |
+| `packages/` directory exists | Yes |
+| All packages in `req.txt` are present in `packages/` | Yes |
+| Portable R bundled (`R/`) | No (warning only) |
+| `pandoc.exe` present when `pandoc/` folder exists | No (warning only) |
+
+Critical failures (red) mean the deployment will not work. Warnings (amber) mean reduced functionality.
+
+---
+
+## Test launch
+
+The **Test launch** button in the success bar opens `LaunchApp.hta` from the output folder directly — identical to what an end user does. Use it to verify the app starts cleanly before copying to SharePoint.
+
+---
+
+## Saved profiles
+
+Build settings can be saved as named JSON profiles stored in `<framework_root>/profiles/`.
+
+| Action | Description |
+|---|---|
+| **Save** | Saves all current form fields under the given name |
+| **Load selected** | Restores all fields from the selected profile |
+| **Delete selected** | Removes the profile JSON file |
+
+::: callout-note
+Profiles store absolute paths for `source_dir` and `output_dir`. These will need updating if the profile is used on a different machine.
+:::
+
+---
+
+## Publisher logs
+
+All build output is written to `<framework_root>/logs/publisher/` as timestamped `.log` files. Logs older than 30 days are cleaned automatically.
+
+From the **Publisher logs** panel you can:
+
+- Browse all saved log files
+- Preview the last 250 lines of any log
+- Delete individual or all logs
+
+Logs contain the full build subprocess output — useful for diagnosing failed installs, missing packages, or robocopy errors.
+
+---
+
+## Portable R setup
+
+### Why portable R?
+
+Without bundled portable R, end users must have R installed. Portable R eliminates that requirement entirely.
+
+### Folder structure
+
+| Folder | Purpose |
+|---|---|
+| `R-portable-master/` | Cold source copy — used during publishing |
+| `R-portable/` | Live runtime copy — used for local launch and testing |
+
+The split avoids Windows DLL locking: when you publish, robocopy reads from the cold `R-portable-master/` while `R-portable/` may be in use.
+
+### What gets stripped
+
+To keep deployments a manageable size, `strip_r.R` removes:
+
+- HTML help files and vignettes
+- Translations and locale files
+- C headers and development files
+- Test suites
+- Tcl/Tk runtime (optional — keep with **Keep Tcl/Tk** checkbox)
+- Package-level documentation (optional — control with **Strip package docs** checkbox)
+
+All runtime code, DLLs, NAMESPACE, and DESCRIPTION files are preserved.
+
+### Creating portable R
+
+1. Install a full R on the publisher machine
+2. Open the **Framework setup** panel in the Publisher UI
+3. Browse to the full R installation folder
+4. Click **Create portable R**
+5. Wait for the green success bar
+
+You only need to do this once per R version.

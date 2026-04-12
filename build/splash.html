@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>__APP_NAME__ — Starting</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    color: #1e293b;
+  }
+  .card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 48px 56px;
+    text-align: center;
+    max-width: 420px;
+    width: 90%;
+    box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08);
+  }
+  .spinner {
+    width: 44px;
+    height: 44px;
+    border: 3px solid #e2e8f0;
+    border-top-color: #2563eb;
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+    margin: 0 auto 24px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #0f172a;
+  }
+  #msg {
+    font-size: 14px;
+    color: #64748b;
+    margin-bottom: 20px;
+    min-height: 20px;
+  }
+  .direct-link {
+    font-size: 13px;
+    color: #2563eb;
+    text-decoration: none;
+  }
+  .direct-link:hover { text-decoration: underline; }
+  #timeout-msg {
+    display: none;
+    font-size: 13px;
+    color: #dc2626;
+    margin-top: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="spinner" id="spinner"></div>
+  <h2>__APP_NAME__</h2>
+  <p id="msg">Starting up&hellip;</p>
+  <a class="direct-link" href="__LAUNCH_URL__" id="direct-link">Open directly &rarr;</a>
+  <p id="timeout-msg">The app is taking longer than expected.<br>Try opening it <a href="__LAUNCH_URL__">directly</a>.</p>
+</div>
+<script>
+(function () {
+  var url = "__LAUNCH_URL__";
+  var attempts = 0;
+  var max = 120;
+
+  function poll() {
+    attempts++;
+    document.getElementById("msg").textContent =
+      "Starting up\u2026 (" + attempts + "s)";
+
+    fetch(url, { mode: "no-cors", cache: "no-cache" })
+      .then(function () {
+        document.getElementById("msg").textContent = "Ready! Opening\u2026";
+        document.getElementById("spinner").style.borderTopColor = "#16a34a";
+        setTimeout(function () { window.location.href = url; }, 300);
+      })
+      .catch(function () {
+        if (attempts < max) {
+          setTimeout(poll, 1000);
+        } else {
+          document.getElementById("spinner").style.display = "none";
+          document.getElementById("msg").style.display = "none";
+          document.getElementById("timeout-msg").style.display = "block";
+        }
+      });
+  }
+
+  setTimeout(poll, 1200);
+})();
+</script>
+</body>
+</html>

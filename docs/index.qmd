@@ -1,0 +1,143 @@
+---
+title: "ShareBridge"
+description: "Portable Shiny app deployment for restricted Windows environments"
+page-layout: full
+toc: false
+---
+
+```{=html}
+<div class="hero">
+  <h1>ShareBridge</h1>
+  <p class="lead">
+    Package and distribute Shiny apps to Windows users who have no admin rights,
+    no R installation, and no Shiny Server — just a SharePoint sync.
+  </p>
+  <a class="btn-hero" href="getting-started.html">Get Started</a>
+  <a class="btn-hero btn-hero-outline" href="https://github.com/PrigasG/ShareBridge">View on GitHub</a>
+</div>
+```
+
+<br>
+
+## What is ShareBridge?
+
+ShareBridge is a local deployment framework for packaging Shiny apps into a single self-contained folder that end users can run by double-clicking a file. It is designed for teams that work inside restricted Windows environments where:
+
+- Users do not have admin rights
+- Installing R or RStudio on every machine is impractical
+- Shiny Server or Posit Connect is not available
+- Distribution happens through SharePoint or OneDrive
+
+ShareBridge handles everything: bundling your app code, detecting and installing all package dependencies, copying a stripped portable R, and generating a clean launcher that opens the app in a friendly browser URL like `http://sharebridge-myapp.localhost:3670`.
+
+---
+
+## Core workflow
+
+```{=html}
+<div class="workflow">
+  <div class="workflow-step">
+    <strong>Publisher</strong>
+    <span>Opens Publisher UI</span>
+  </div>
+  <div class="workflow-arrow">→</div>
+  <div class="workflow-step">
+    <strong>Build</strong>
+    <span>Packages app + R + deps</span>
+  </div>
+  <div class="workflow-arrow">→</div>
+  <div class="workflow-step">
+    <strong>SharePoint</strong>
+    <span>Copies output folder</span>
+  </div>
+  <div class="workflow-arrow">→</div>
+  <div class="workflow-step">
+    <strong>Sync</strong>
+    <span>User syncs locally</span>
+  </div>
+  <div class="workflow-arrow">→</div>
+  <div class="workflow-step">
+    <strong>Launch</strong>
+    <span>Double-click LaunchApp</span>
+  </div>
+</div>
+```
+
+---
+
+## Features
+
+```{=html}
+<div class="feature-grid">
+
+  <div class="feature-card">
+    <span class="icon">📦</span>
+    <h3>Zero admin rights required</h3>
+    <p>Bundles R and all packages inside the deployment folder. Users need nothing pre-installed.</p>
+  </div>
+
+  <div class="feature-card">
+    <span class="icon">🖥️</span>
+    <h3>Visual Publisher UI</h3>
+    <p>A Shiny-based publisher interface with live build progress, package detection, and saved profiles.</p>
+  </div>
+
+  <div class="feature-card">
+    <span class="icon">🔍</span>
+    <h3>Automatic dependency detection</h3>
+    <p>Scans your app code for <code>library()</code>, <code>require()</code>, and <code>pkg::</code> calls. Falls back to regex if renv is not available.</p>
+  </div>
+
+  <div class="feature-card">
+    <span class="icon">📡</span>
+    <h3>SharePoint & OneDrive distribution</h3>
+    <p>Place the output folder in SharePoint. Users sync it and double-click <code>LaunchApp.hta</code> — nothing else to do.</p>
+  </div>
+
+  <div class="feature-card">
+    <span class="icon">🌐</span>
+    <h3>Friendly local URLs</h3>
+    <p>Apps open at a human-readable address like <code>sharebridge-myapp.localhost:3670</code> instead of a raw port number.</p>
+  </div>
+
+  <div class="feature-card">
+    <span class="icon">📴</span>
+    <h3>Offline repo support</h3>
+    <p>Optionally build a local CRAN mirror inside the deployment so packages install without internet access.</p>
+  </div>
+
+  <div class="feature-card">
+    <span class="icon">🔬</span>
+    <h3>Health check & test launch</h3>
+    <p>After every build, ShareBridge checks that all required files and packages are present, then lets you test-launch with one click.</p>
+  </div>
+
+  <div class="feature-card">
+    <span class="icon">💾</span>
+    <h3>Build profiles</h3>
+    <p>Save your publisher settings as named profiles. Reload them in one click for repeatable builds across versions.</p>
+  </div>
+
+</div>
+```
+
+---
+
+## Requirements
+
+| Side | Requirement |
+|---|---|
+| **Publisher machine** | Windows, R ≥ 4.0, packages: `shiny`, `processx`, `jsonlite` |
+| **End user machine** | Windows, SharePoint/OneDrive sync (no R, no admin rights needed when portable R is bundled) |
+
+---
+
+## Quick install
+
+ShareBridge is not a CRAN package — it is a framework folder. To get started:
+
+1. Clone or download the repository
+2. Open `PublishApp.hta` to launch the Publisher UI
+3. Point it at your Shiny app and click **Build deployment**
+
+See the [Getting Started](getting-started.html) guide for the full walkthrough.

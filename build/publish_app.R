@@ -304,13 +304,17 @@ derive_port <- function(app_id, range_start = 3400L, range_size = 1001L) {
 # ------------------------------------------------------------------
 # app_meta.cfg
 # ------------------------------------------------------------------
-write_app_meta <- function(path, app_name, app_id, preferred_port = 3402L, host = "127.0.0.1") {
+write_app_meta <- function(path, app_name, app_id, preferred_port = 3402L,
+                            host = "127.0.0.1", data_dir = NULL) {
   lines <- c(
     paste0("APP_NAME=", app_name),
     paste0("APP_ID=", app_id),
     paste0("PREFERRED_PORT=", preferred_port),
     paste0("HOST=", host)
   )
+  if (!is.null(data_dir) && nzchar(trimws(data_dir))) {
+    lines <- c(lines, paste0("DATA_DIR=", trimws(data_dir)))
+  }
   writeLines(lines, con = path, useBytes = TRUE)
 }
 
@@ -601,7 +605,8 @@ publish_app_main <- function(
     cran_repo = "https://cloud.r-project.org",
     verify_load = TRUE,
     preferred_port = NULL,
-    host = "127.0.0.1"
+    host = "127.0.0.1",
+    data_dir = NULL
 ) {
   framework_dir <- safe_norm(framework_dir, mustWork = TRUE)
   source_dir <- safe_norm(source_dir, mustWork = TRUE)
@@ -630,6 +635,7 @@ publish_app_main <- function(
   cat_line("[publish] writable_dirs: ", paste(app_features$writable_dirs, collapse = ", "))
   cat_line("[publish] include_pandoc: ", app_features$include_pandoc)
   cat_line("[publish] bundle_rmarkdown_support: ", app_features$bundle_rmarkdown_support)
+  cat_line("[publish] data_dir: ", if (!is.null(data_dir) && nzchar(data_dir)) data_dir else "(none)")
 
   required_framework_files <- c("LaunchApp.hta", "run.bat", "run.R")
   missing_framework <- required_framework_files[
@@ -714,7 +720,8 @@ publish_app_main <- function(
     app_name = app_name,
     app_id = app_id,
     preferred_port = preferred_port,
-    host = host
+    host = host,
+    data_dir = data_dir
   )
   cat_line("[publish] app_meta.cfg written.")
 
@@ -868,6 +875,7 @@ if (identical(environment(), globalenv()) && !length(sys.frames()) > 1) {
     cran_repo = args$cran_repo %||% "https://cloud.r-project.org",
     verify_load = flag_value(args$verify_load, TRUE),
     preferred_port = if (!is.null(args$preferred_port)) as.integer(args$preferred_port) else NULL,
-    host = args$host %||% "127.0.0.1"
+    host = args$host %||% "127.0.0.1",
+    data_dir = args$data_dir %||% NULL
   )
 }

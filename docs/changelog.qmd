@@ -1,0 +1,67 @@
+---
+title: "Changelog"
+description: "Version history and release notes for ShareBridge"
+---
+
+## Unreleased
+
+### Added
+
+**Publisher UI**
+
+- **Live build progress overlay** — replaces the static spinner with a percentage counter, phase label, package install counter (`Installing packages (18 of 26)...`), and elapsed timer. Source compilation phases show a shimmer animation and the C/C++ compile percentage.
+- **Source folder validation** — validates `app.R` or `ui.R` + `server.R` structure on folder select and shows an inline badge. Build button is blocked when the structure is invalid.
+- **Pre-build summary panel** — appears above the Build button showing app name, app ID, package count, portable R status, and all advanced option selections before committing to a build.
+- **Saved build profiles** — save all publisher form fields as named JSON profiles in `<framework>/profiles/`. Load or delete profiles from a dropdown in a new collapsible panel.
+- **Deployment health check** — runs automatically after every successful build. Checks required files, directories, package completeness, portable R, and Pandoc exe presence. Color-coded results (green/amber/red).
+- **Test launch button** — appears in the success result bar after a build. Opens `LaunchApp.hta` from the output folder directly, identical to end-user experience.
+- **DATA_DIR field** — new field in Advanced app features. Writes `DATA_DIR=` to `app_meta.cfg`. Exposed at runtime as `SHAREBRIDGE_DATA_DIR`.
+
+**Runtime (`run.R`)**
+
+- **R version mismatch guard** — reads `RVersionMajorMinor` from `VERSION` and logs a warning if the running R major.minor does not match the build R version.
+- **DATA_DIR support** — reads `DATA_DIR` from `app_meta.cfg` and sets `SHAREBRIDGE_DATA_DIR` environment variable before launching the Shiny app.
+
+**Build (`build_packages.R`)**
+
+- **Windows binary preference** — installs packages using `type = "win.binary"` on Windows, eliminating unnecessary source compilation for packages that have a CRAN binary available.
+
+**End-user launcher (`LaunchApp.hta`)**
+
+- **Desktop shortcut creator** — on first launch, prompts the user once with a Yes/No dialog to create a desktop shortcut pointing to `LaunchApp.hta`. A `.shortcut_offered` marker file prevents the prompt from appearing again.
+
+**Startup experience (`run.bat`, `build/splash.html`)**
+
+- **Startup splash page** — before R starts, `run.bat` generates a per-launch loading page from `build/splash.html`, substituting the app name and loopback URL. The page polls the Shiny server every second and auto-redirects when the app is ready (up to 120 second timeout).
+- **Crash landing page** — when R exits with a non-zero code, `run.bat` generates a styled HTML error page with the last 35 log lines and opens it in the browser automatically.
+
+**Documentation**
+
+- Full Quarto documentation site with Getting Started, Publisher Guide, User Guide, Reference, and Changelog pages.
+- GitHub Actions workflow for automatic deployment to GitHub Pages on push to `master`.
+
+---
+
+## v0.1.0 — Initial release
+
+### Added
+
+- Publisher Shiny UI (`build/publisher_ui/app.R`) with folder browsing, package detection, build options, and live log output
+- Background build subprocess via `processx` + VBScript hidden launcher
+- `publish_app.R` — full build orchestrator (source validation, dependency detection, portable R copy, package bundling, metadata generation)
+- `build_packages.R` — CRAN package installer with optional offline repo and load verification
+- `strip_r.R` — portable R builder with doc/test/header stripping
+- `run.bat` — runtime launcher with multi-location R detection and log rotation
+- `run.R` — Shiny runtime entry point with lib path management, missing package installation, and deterministic port assignment
+- `LaunchApp.hta` — hidden HTA launcher for end users
+- `PublishApp.hta` — hidden HTA launcher for publishers
+- `build/run_hidden.vbs` — background process launcher (no console window)
+- Offline CRAN repo support
+- Optional Pandoc stub folder with README
+- Writable app directory provisioning
+- Deterministic port assignment (range 3400–4400, derived from App ID)
+- Friendly loopback URL format (`sharebridge-{id}.localhost:{port}`)
+- Publisher log management (view, preview, delete) in the UI
+- Automatic log rotation (30-day publisher logs, 7-day runtime logs)
+- Strip R tab in Publisher UI for creating portable R from the framework UI
+- `R-portable-master/` (cold source) vs `R-portable/` (live runtime) dual-folder design

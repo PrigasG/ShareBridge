@@ -1,0 +1,168 @@
+---
+title: "Getting Started"
+description: "Install ShareBridge and build your first deployment in under 10 minutes"
+---
+
+## Prerequisites
+
+Before you begin, make sure the publisher machine has:
+
+- **Windows** (10 or 11)
+- **R ≥ 4.0** installed — [download from CRAN](https://cloud.r-project.org)
+- The following R packages:
+
+```r
+install.packages(c("shiny", "processx", "jsonlite"))
+```
+
+::: callout-note
+End users need **none** of the above if you bundle portable R during the build.
+:::
+
+---
+
+## Step 1 — Get ShareBridge
+
+Clone or download the repository:
+
+```bash
+git clone https://github.com/PrigasG/ShareBridge.git
+```
+
+Or download the ZIP from GitHub and extract it anywhere — `Documents`, a project folder, wherever you keep your tools.
+
+The framework root should look like:
+
+```
+ShareBridge/
+├── PublishApp.hta      ← open this to publish
+├── LaunchApp.hta
+├── run.bat
+├── run.R
+├── build/
+├── strip_r.R
+└── ...
+```
+
+---
+
+## Step 2 — Create portable R (one-time setup)
+
+ShareBridge can bundle a stripped-down copy of R inside every deployment so end users need nothing installed. You only do this once per R version.
+
+1. Open `PublishApp.hta`
+2. Expand **Framework setup**
+3. Browse to your full R installation (e.g. `C:\Program Files\R\R-4.5.1`)
+4. Click **Create portable R**
+5. Wait for the green success bar
+
+This creates `R-portable-master/` in the framework folder. Future builds copy from there automatically.
+
+::: callout-tip
+Skip this step if your end users already have R installed. ShareBridge will use their system R as a fallback.
+:::
+
+---
+
+## Step 3 — Open the Publisher UI
+
+Double-click **`PublishApp.hta`** in the framework root. A browser window opens with the Publisher interface.
+
+If your environment blocks `.hta` files via Group Policy, use `publish.bat` instead — it opens the same UI in a console window.
+
+---
+
+## Step 4 — Fill in your app details
+
+```{=html}
+<ol class="step-list">
+  <li>
+    <div>
+      <strong>Select source folder</strong><br>
+      Click <strong>Browse</strong> next to <em>App folder</em> and select the folder containing your
+      <code>app.R</code> (or <code>ui.R</code> + <code>server.R</code>). ShareBridge validates the
+      structure immediately and shows a green badge if it looks correct.
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>Review detected packages</strong><br>
+      ShareBridge scans your app code and lists all packages it found. Add any extras the scanner
+      might miss (dynamic loading, etc.) in the <em>Additional packages</em> box.
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>Set the output folder</strong><br>
+      This is where the deployable folder will be created. It is auto-filled based on the app name.
+      Change it if needed.
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>Review the build summary</strong><br>
+      A summary panel appears above the Build button showing: app name, package count, portable R
+      status, and any advanced options. Confirm everything looks right.
+    </div>
+  </li>
+</ol>
+```
+
+---
+
+## Step 5 — Build
+
+Click **Build deployment**. The progress overlay tracks each phase:
+
+| Phase | What is happening |
+|---|---|
+| Setting up folder | Creating output directory structure |
+| Copying portable R | Robocopy of ~50 MB stripped R installation |
+| Detecting dependencies | Scanning app code |
+| Downloading packages | Fetching from CRAN |
+| Installing packages | Unpacking binaries into `packages/` |
+| Compiling from source | Only when no binary is available (shows a shimmer bar) |
+| Verifying | Load-testing every bundled package |
+| Done | Health check runs automatically |
+
+Typical build times:
+
+- **Simple app, 3–5 packages** — 2–4 minutes
+- **Dashboard, 10–15 packages** — 5–10 minutes
+- **Complex app with source compilation** — up to 20 minutes (first build only)
+
+::: callout-tip
+Subsequent builds of the same app are faster because packages are already on disk — only changed ones are reinstalled.
+:::
+
+---
+
+## Step 6 — Health check and test launch
+
+After a successful build, ShareBridge automatically runs a **health check** that verifies:
+
+- All required framework files are present
+- The `app/` folder exists
+- Every package in `req.txt` is bundled in `packages/`
+- Portable R is bundled
+- Pandoc is in place (if the stub folder exists)
+
+Then click **Test launch** to open the app exactly as an end user would.
+
+---
+
+## Step 7 — Distribute
+
+1. Copy the output folder to SharePoint or a OneDrive-synced location
+2. Tell users to sync it locally
+3. Tell users to open `LaunchApp.hta` — that is all they need to do
+
+On first launch, users are offered a desktop shortcut automatically.
+
+---
+
+## What's next?
+
+- [Publisher Guide](publisher-guide.html) — detailed reference for all publisher options
+- [User Guide](user-guide.html) — what to tell your end users
+- [Reference](reference.html) — all config files, CLI arguments, and env vars
