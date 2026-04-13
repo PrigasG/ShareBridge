@@ -8,10 +8,10 @@ website:
   site-url: "https://prigasg.github.io/ShareBridge"
   repo-url: "https://github.com/PrigasG/ShareBridge"
   repo-actions: [issue]
-  favicon: images/favicon.png
+  favicon: images/favicon.svg
 
   navbar:
-    logo: images/logo.png
+    logo: images/logo.svg
     logo-alt: "ShareBridge"
     title: false
     left:

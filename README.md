@@ -1,4 +1,18 @@
-# ShareBridge
+<p align="center">
+  <img src="docs/images/logo.svg" alt="ShareBridge" height="48"/>
+</p>
+
+<p align="center">
+  <strong>Portable Shiny app deployment for restricted Windows environments</strong>
+</p>
+
+<p align="center">
+  <a href="https://prigasg.github.io/ShareBridge">Documentation</a> ·
+  <a href="https://prigasg.github.io/ShareBridge/getting-started.html">Get Started</a> ·
+  <a href="https://github.com/PrigasG/ShareBridge/issues">Report Issue</a>
+</p>
+
+---
 
 **ShareBridge** is a local deployment framework for packaging and distributing Shiny apps in restricted Windows environments.
 
