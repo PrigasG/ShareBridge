@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Blue rounded square background -->
+  <rect width="32" height="32" rx="6.4" fill="#2563eb"/>
+
+  <!-- Road deck -->
+  <rect x="2.5" y="22.2" width="27" height="2.8" rx="1.4" fill="white"/>
+
+  <!-- Left tower -->
+  <rect x="8.4" y="7.5" width="2.8" height="16.8" rx="1.4" fill="white"/>
+
+  <!-- Right tower -->
+  <rect x="20.8" y="7.5" width="2.8" height="16.8" rx="1.4" fill="white"/>
+
+  <!-- Main suspension cable — M silhouette -->
+  <!-- runs from left anchorage, up to left tower top, sags to midspan, up to right tower top, down to right anchorage -->
+  <path d="M 2.5,22.2 L 9.8,7.5 Q 16,18.8 22.2,7.5 L 29.5,22.2"
+        fill="none" stroke="white" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
