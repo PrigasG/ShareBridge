@@ -160,9 +160,6 @@ strip_package_docs <- function(pkg_path, dry_run = FALSE) {
 # ------------------------------------------------------------------
 # Copy full directory contents robustly
 # ------------------------------------------------------------------
-# ------------------------------------------------------------------
-# Copy full directory contents robustly
-# ------------------------------------------------------------------
 copy_one_path <- function(src, dst, overwrite = TRUE, retries = 2L, wait_seconds = 0.25) {
   stopifnot(length(src) == 1L, length(dst) == 1L)
 

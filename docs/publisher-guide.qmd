@@ -1,9 +1,9 @@
 ---
 title: "Publisher Guide"
-description: "Complete reference for building and distributing Shiny app deployments with ShareBridge"
+description: "Complete reference for building and distributing Shiny app deployments with Shiny ShareBridge"
 ---
 
-This guide covers every feature of the ShareBridge Publisher in depth. For a quick walkthrough, see [Getting Started](getting-started.html).
+This guide covers every feature of the Shiny ShareBridge Publisher in depth. For a quick walkthrough, see [Getting Started](getting-started.html).
 
 ---
 
@@ -17,7 +17,7 @@ This guide covers every feature of the ShareBridge Publisher in depth. For a qui
 Both open the same Shiny-based Publisher UI in your default browser.
 
 ::: callout-important
-Always launch from inside the **ShareBridge framework root** — not from inside a deployed app folder.
+Always launch from inside the **Shiny ShareBridge framework root** — not from inside a deployed app folder.
 :::
 
 ---
@@ -26,7 +26,7 @@ Always launch from inside the **ShareBridge framework root** — not from inside
 
 ### Supported layouts
 
-ShareBridge supports two standard Shiny structures:
+Shiny ShareBridge supports two standard Shiny structures:
 
 **Single-file:**
 ```
@@ -45,7 +45,7 @@ Supporting folders are copied automatically: `www/`, `R/`, `modules/`, `data/`, 
 
 ### Validation badge
 
-When you select a source folder, ShareBridge immediately validates it and shows a badge:
+When you select a source folder, Shiny ShareBridge immediately validates it and shows a badge:
 
 - 🟢 **`app.R found`** or **`ui.R + server.R found`** — valid, build can proceed
 - 🔴 **Error message** — folder is missing required entry points, build is blocked
@@ -56,7 +56,7 @@ When you select a source folder, ShareBridge immediately validates it and shows 
 
 ### How it works
 
-ShareBridge scans all `.R`, `.Rmd`, and `.qmd` files in the source folder for:
+Shiny ShareBridge scans all `.R`, `.Rmd`, and `.qmd` files in the source folder for:
 
 - `library(pkg)` and `require(pkg)`
 - `pkg::function()` and `pkg:::function()`
@@ -90,11 +90,11 @@ The output folder is where the complete deployable folder is written. It is auto
 
 ### Create zip file
 
-When enabled, ShareBridge zips the output folder after building. The zip file appears at `<output_dir>.zip` and is available for download directly from the Publisher UI.
+When enabled, Shiny ShareBridge zips the output folder after building. The zip file appears at `<output_dir>.zip` and is available for download directly from the Publisher UI.
 
 ### Build offline repo
 
-When enabled, ShareBridge downloads a copy of all bundled packages into a `repo/` folder inside the deployment. At runtime, `run.R` installs from this local repo first, falling back to CRAN only if the local repo is missing.
+When enabled, Shiny ShareBridge downloads a copy of all bundled packages into a `repo/` folder inside the deployment. At runtime, `run.R` installs from this local repo first, falling back to CRAN only if the local repo is missing.
 
 Use this when your end users have no internet access.
 
@@ -106,7 +106,7 @@ Use this when your end users have no internet access.
 
 Ensures selected app subdirectories exist inside the deployed `app/` folder. Useful for apps that write to `data/`, `uploads/`, `cache/`, or `tmp/`.
 
-When you enable this option, ShareBridge scans the source folder for subdirectories and presents them as checkboxes. Select the ones that need to exist (and be writable) in the deployment.
+When you enable this option, Shiny ShareBridge scans the source folder for subdirectories and presents them as checkboxes. Select the ones that need to exist (and be writable) in the deployment.
 
 ::: callout-note
 This only **creates** the directories — it does not modify your app code. Your app must still reference and write to those folders.
@@ -116,9 +116,9 @@ This only **creates** the directories — it does not modify your app code. Your
 
 Creates a `pandoc/` stub folder in the deployment and adds R Markdown support packages (`rmarkdown`, `knitr`, etc.) to `req.txt`.
 
-At runtime, if `pandoc/pandoc.exe` is present, ShareBridge sets `RSTUDIO_PANDOC` automatically so rmarkdown finds it.
+At runtime, if `pandoc/pandoc.exe` is present, Shiny ShareBridge sets `RSTUDIO_PANDOC` automatically so rmarkdown finds it.
 
-**Important:** ShareBridge does not copy Pandoc automatically. After building, place a Pandoc installation into the `pandoc/` folder manually. Download from [pandoc.org](https://pandoc.org/installing.html).
+**Important:** Shiny ShareBridge does not copy Pandoc automatically. After building, place a Pandoc installation into the `pandoc/` folder manually. Download from [pandoc.org](https://pandoc.org/installing.html).
 
 ### External data directory (DATA_DIR)
 
@@ -169,7 +169,7 @@ Source compilation only happens on the first build or after an R version upgrade
 
 ## Health check
 
-After every successful build, ShareBridge runs an automatic health check:
+After every successful build, Shiny ShareBridge runs an automatic health check:
 
 | Check | Critical |
 |---|---|

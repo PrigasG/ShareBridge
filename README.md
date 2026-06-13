@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/logo.svg" alt="ShareBridge" height="48"/>
+  <img src="docs/images/logo.svg" alt="Shiny ShareBridge" height="48"/>
 </p>
 
 <p align="center">
@@ -14,7 +14,7 @@
 
 ---
 
-**ShareBridge** is a local deployment framework for packaging and distributing Shiny apps in restricted Windows environments.
+**Shiny ShareBridge** is a local deployment framework for packaging and distributing Shiny apps in restricted Windows environments.
 
 It is designed for teams that:
 - do not have admin rights
@@ -22,13 +22,13 @@ It is designed for teams that:
 - need a simple SharePoint or OneDrive based distribution workflow
 - want portable Shiny app delivery with bundled packages and optional bundled R
 
-ShareBridge lets a publisher package a Shiny app into a single deployable folder, place it in SharePoint, and have end users sync and run it locally. No Shiny Server, no admin rights, and no R installation required on user machines when portable R is bundled.
+Shiny ShareBridge lets a publisher package a Shiny app into a single deployable folder, place it in SharePoint, and have end users sync and run it locally. No Shiny Server, no admin rights, and no R installation required on user machines when portable R is bundled.
 
 ---
 
-## What ShareBridge does
+## What Shiny ShareBridge does
 
-ShareBridge provides:
+Shiny ShareBridge provides:
 
 - a local Publisher UI for packaging Shiny apps
 - automatic package detection and bundling
@@ -49,7 +49,7 @@ http://sharebridge-my_app.localhost:3670
 ## Core workflow
 
 ### Publisher workflow
-1. Open the **ShareBridge Publisher** (double-click `PublishApp.hta`)
+1. Open the **Shiny ShareBridge Publisher** (double-click `PublishApp.hta`)
 2. Select the source Shiny app folder
 3. Enter the app name
 4. Review detected packages and add extras if needed
@@ -142,7 +142,7 @@ The Publisher UI supports:
 
 ## Supported app layouts
 
-ShareBridge supports either:
+Shiny ShareBridge supports either:
 
 **Single-file app:**
 - `app.R`
@@ -157,7 +157,7 @@ It also supports common supporting folders such as:
 
 ## Packaging behavior
 
-During publishing, ShareBridge:
+During publishing, Shiny ShareBridge:
 
 1. Validates the source app structure (checks for `app.R` or `ui.R` + `server.R`)
 2. Copies the source app into the output folder under `app/`
@@ -200,7 +200,7 @@ MyApp_deploy/
 
 ## Portable R workflow
 
-ShareBridge separates the portable R source from the portable R runtime.
+Shiny ShareBridge separates the portable R source from the portable R runtime.
 
 ### Folders
 - `R-portable-master/` — master source copy used for publishing
@@ -215,7 +215,7 @@ This split avoids Windows file-locking problems during publishing.
    ```
    Rscript strip_r.R --r_source "C:\Path\To\R"
    ```
-3. ShareBridge creates `R-portable-master/` and optionally refreshes `R-portable/`
+3. Shiny ShareBridge creates `R-portable-master/` and optionally refreshes `R-portable/`
 
 ### Why this design is used
 - Publishing should copy from a cold source tree
@@ -230,7 +230,7 @@ Documentation, test suites, Tcl/Tk runtime, C headers, translations, and help/vi
 
 ## Dependency detection
 
-ShareBridge detects packages automatically from app source code.
+Shiny ShareBridge detects packages automatically from app source code.
 
 **Detected patterns:**
 - `library(pkg)` and `require(pkg)`
@@ -252,7 +252,7 @@ For these cases, publishers can add extra packages manually in the Publisher UI 
 
 ## Writable app directories
 
-ShareBridge can optionally ensure selected app subdirectories exist in the deployment.
+Shiny ShareBridge can optionally ensure selected app subdirectories exist in the deployment.
 
 This is useful for apps that expect writable folders such as `data/`, `uploads/`, `cache/`, or `tmp/`.
 
@@ -266,14 +266,14 @@ Important:
 
 ## Pandoc support
 
-ShareBridge supports an optional Pandoc preparation mode.
+Shiny ShareBridge supports an optional Pandoc preparation mode.
 
 When the **Include Pandoc** option is enabled:
-- ShareBridge creates a `pandoc/` folder in the deployment output
-- ShareBridge writes a `README_Pandoc.txt` into that folder
-- ShareBridge adds relevant R Markdown support packages to `req.txt`
+- Shiny ShareBridge creates a `pandoc/` folder in the deployment output
+- Shiny ShareBridge writes a `README_Pandoc.txt` into that folder
+- Shiny ShareBridge adds relevant R Markdown support packages to `req.txt`
 
-By default, ShareBridge does not copy a Pandoc installation automatically. This keeps deployment size smaller. If your app needs PDF generation or R Markdown rendering, place a local Pandoc installation into `pandoc/` with `pandoc/pandoc.exe`. At runtime, ShareBridge will use that local Pandoc folder if present.
+By default, Shiny ShareBridge does not copy a Pandoc installation automatically. This keeps deployment size smaller. If your app needs PDF generation or R Markdown rendering, place a local Pandoc installation into `pandoc/` with `pandoc/pandoc.exe`. At runtime, Shiny ShareBridge will use that local Pandoc folder if present.
 
 ---
 
@@ -287,13 +287,13 @@ Apps open in a browser using a friendly local loopback URL such as:
 http://sharebridge-my_app.localhost:3670
 ```
 
-If the preferred port is already in use, ShareBridge falls back to a random local port.
+If the preferred port is already in use, Shiny ShareBridge falls back to a random local port.
 
 ---
 
 ## Port assignment
 
-Each app gets a deterministic preferred port derived from its app ID, in the range 3400–4400. This ensures two different apps published through ShareBridge default to different ports without manual configuration.
+Each app gets a deterministic preferred port derived from its app ID, in the range 3400–4400. This ensures two different apps published through Shiny ShareBridge default to different ports without manual configuration.
 
 If the preferred port is unavailable at launch time, `run.R` falls back to a random port via `httpuv::randomPort()`.
 
@@ -385,4 +385,4 @@ This avoids admin installs, MSI packaging, per-user R setup, and direct package 
 
 ## License
 
-ShareBridge is an internal deployment framework. If you bundle R and CRAN packages, retain the applicable third-party license notices and attribution requirements for redistributed components. R itself is licensed under GPL-2 | GPL-3.
+Shiny ShareBridge is an internal deployment framework. If you bundle R and CRAN packages, retain the applicable third-party license notices and attribution requirements for redistributed components. R itself is licensed under GPL-2 | GPL-3.

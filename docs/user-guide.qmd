@@ -1,9 +1,9 @@
 ---
 title: "User Guide"
-description: "How end users run a ShareBridge app — no R installation required"
+description: "How end users run a Shiny ShareBridge app — no R installation required"
 ---
 
-This guide is for the **end users** who receive a ShareBridge-deployed app. You can share this page directly with your team.
+This guide is for the **end users** who receive a Shiny ShareBridge-deployed app. You can share this page directly with your team.
 
 ::: callout-note
 You do not need to install R, RStudio, or any software. Everything you need is inside the folder you received.
@@ -50,7 +50,7 @@ A loading screen appears in your browser while the app starts up. The app will o
 
 ## Step 3 — Create a desktop shortcut (optional)
 
-On the very first launch, ShareBridge will ask:
+On the very first launch, Shiny ShareBridge will ask:
 
 > *"Create a desktop shortcut for [App Name]?"*
 
@@ -76,7 +76,7 @@ The app runs entirely on your local computer — no internet connection is neede
 
 ### "App folder not found"
 
-You opened `LaunchApp.hta` from the wrong location — likely the ShareBridge framework folder rather than the deployment folder. Make sure you are opening it from inside the folder your team shared with you.
+You opened `LaunchApp.hta` from the wrong location — likely the Shiny ShareBridge framework folder rather than the deployment folder. Make sure you are opening it from inside the folder your team shared with you.
 
 ### "Package not found" on startup
 
@@ -92,7 +92,7 @@ A crash page will appear in your browser with the last lines from the error log.
 
 ### Port conflict ("preferred port in use")
 
-ShareBridge will automatically fall back to a random port. The app should still open — the URL in the browser will be different from usual.
+Shiny ShareBridge will automatically fall back to a random port. The app should still open — the URL in the browser will be different from usual.
 
 ### The loading screen shows "taking longer than expected"
 

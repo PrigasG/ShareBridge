@@ -152,8 +152,6 @@ suppressPackageStartupMessages(
 Sys.setenv(SHINY_LOG_LEVEL = Sys.getenv("SHINY_LOG_LEVEL", unset = "INFO"))
 options(shiny.fullstacktrace = TRUE)
 
-#cool url ------------
-
 make_launch_url <- function(port, app_id) {
   sprintf("http://sharebridge-%s.localhost:%d", tolower(app_id), as.integer(port))
 }

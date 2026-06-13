@@ -1,6 +1,6 @@
 <html>
 <head>
-<title>ShareBridge Publisher</title>
+<title>Shiny ShareBridge Publisher</title>
 <HTA:APPLICATION
   APPLICATIONNAME="ShareBridgePublisher"
   BORDER="none"
@@ -27,7 +27,7 @@ root = fso.GetParentFolderName(thisPath)
 bat  = root & "\publish.bat"
 
 If Not fso.FileExists(bat) Then
-  MsgBox "publish.bat was not found in:" & vbCrLf & root, 16, "ShareBridge Publisher"
+  MsgBox "publish.bat was not found in:" & vbCrLf & root, 16, "Shiny ShareBridge Publisher"
   window.close
 End If
 

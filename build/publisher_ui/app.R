@@ -1,5 +1,5 @@
 
-# ShareBridge Publisher
+# Shiny ShareBridge Publisher
 #
 # A local Shiny app that provides a visual interface for publishing
 # portable Shiny app deployments. Replaces the command-line workflow.
@@ -32,7 +32,7 @@ resolve_framework_dir <- function() {
   if (nzchar(env_dir) && dir.exists(env_dir)) {
     return(normalizePath(env_dir, winslash = "/", mustWork = TRUE))
   }
-  stop("Cannot locate ShareBridge framework directory.")
+  stop("Cannot locate Shiny ShareBridge framework directory.")
 }
 
 
@@ -599,7 +599,7 @@ ui <- fluidPage(
 
   div(class = "header",
       div(
-        h2("ShareBridge Publisher"),
+        h2("Shiny ShareBridge Publisher"),
         p("Build portable Shiny app deployments")
       ),
       uiOutput("clear_button_ui")
@@ -734,7 +734,7 @@ ui <- fluidPage(
                 ),
                 div(
                   class = "help-text",
-                  "Written to app_meta.cfg as DATA_DIR. At runtime ShareBridge sets SHAREBRIDGE_DATA_DIR. Use for app data that should live outside the synced deployment folder."
+                  "Written to app_meta.cfg as DATA_DIR. At runtime Shiny ShareBridge sets SHAREBRIDGE_DATA_DIR. Use for app data that should live outside the synced deployment folder."
                 )
             )
         )
@@ -798,7 +798,7 @@ ui <- fluidPage(
                 ),
                 div(
                   class = "help-text",
-                  "Select a full R installation to create R-portable for ShareBridge"
+                  "Select a full R installation to create R-portable for Shiny ShareBridge"
                 )
             ),
             div(class = "inline-checks",

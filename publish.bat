@@ -2,7 +2,7 @@
 setlocal
 
 REM =========================================================
-REM ShareBridge Publisher Launcher
+REM Shiny ShareBridge Publisher Launcher
 REM Opens the publisher UI in the default browser.
 REM Usually launched via PublishApp.hta so this window stays hidden.
 REM =========================================================
@@ -71,7 +71,7 @@ pause
 exit /b 1
 
 :run
-echo Starting ShareBridge Publisher...
+echo Starting Shiny ShareBridge Publisher...
 echo.
 "%RS%" --vanilla -e "shiny::runApp('%APP_DIR:\=/%', launch.browser = TRUE, host = '127.0.0.1', port = httpuv::randomPort())"
 

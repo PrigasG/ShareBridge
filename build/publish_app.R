@@ -758,12 +758,6 @@ publish_app_main <- function(
     }
   }
 
-  # if (isTRUE(app_features$include_pandoc)) {
-  #   pandoc_pkgs <- pandoc_support_packages(app_features$bundle_rmarkdown_support)
-  #   cat_line("[publish] Adding Pandoc support packages: ", paste(pandoc_pkgs, collapse = ", "))
-  #   extra_req <- unique(c(extra_req, pandoc_pkgs))
-  # }
-
   if (isTRUE(app_features$include_pandoc)) {
     pandoc_dir <- ensure_pandoc_stub(output_dir)
     cat_line("[publish] Pandoc folder prepared at: ", pandoc_dir)

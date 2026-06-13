@@ -1,6 +1,6 @@
 ---
 title: "Reference"
-description: "Complete reference for all ShareBridge configuration files, CLI arguments, and runtime environment variables"
+description: "Complete reference for all Shiny ShareBridge configuration files, CLI arguments, and runtime environment variables"
 ---
 
 ## Configuration files
@@ -81,7 +81,7 @@ Written by the publisher after each build. Read by `run.R` for the R version mis
 
 Optional. Place this file in the source app folder or the framework root to add packages that the scanner cannot detect. Same format as `req.txt`.
 
-ShareBridge merges it with the auto-detected package list during the build. It is not required — you can also add extra packages interactively in the Publisher UI.
+Shiny ShareBridge merges it with the auto-detected package list during the build. It is not required — you can also add extra packages interactively in the Publisher UI.
 
 ---
 
@@ -139,7 +139,7 @@ derive_port <- function(app_id, range_start = 3400L, range_size = 1001L) {
 }
 ```
 
-This ensures two different apps published through ShareBridge will not collide on the same port by default.
+This ensures two different apps published through Shiny ShareBridge will not collide on the same port by default.
 
 If the preferred port is unavailable at launch, `run.R` falls back to `httpuv::randomPort()`.
 

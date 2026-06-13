@@ -143,7 +143,7 @@
 /* ---------- Callout overrides ---------- */
 .callout {
   border-radius: 10px;
-  border-left-width: 4px;
+  border-width: 1px;
 }
 .callout-tip    { background: #f0fdf4; border-color: #16a34a; }
 .callout-note   { background: var(--sb-blue-light); border-color: var(--sb-blue); }

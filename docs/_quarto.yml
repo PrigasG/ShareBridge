@@ -3,7 +3,7 @@ project:
   output-dir: _site
 
 website:
-  title: "ShareBridge"
+  title: "Shiny ShareBridge"
   description: "Portable Shiny app deployment for restricted Windows environments"
   site-url: "https://prigasg.github.io/ShareBridge"
   repo-url: "https://github.com/PrigasG/ShareBridge"
@@ -12,7 +12,7 @@ website:
 
   navbar:
     logo: images/logo.svg
-    logo-alt: "ShareBridge"
+    logo-alt: "Shiny ShareBridge"
     title: false
     left:
       - text: "Get Started"
@@ -36,7 +36,7 @@ website:
 
   page-footer:
     left: "Built with [Quarto](https://quarto.org)"
-    right: "ShareBridge — portable Shiny for Windows"
+    right: "Shiny ShareBridge — portable Shiny for Windows"
 
   open-graph: true
 

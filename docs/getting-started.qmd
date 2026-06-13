@@ -1,6 +1,6 @@
 ---
 title: "Getting Started"
-description: "Install ShareBridge and build your first deployment in under 10 minutes"
+description: "Install Shiny ShareBridge and build your first deployment in under 10 minutes"
 ---
 
 ## Prerequisites
@@ -21,7 +21,7 @@ End users need **none** of the above if you bundle portable R during the build.
 
 ---
 
-## Step 1 — Get ShareBridge
+## Step 1 — Get Shiny ShareBridge
 
 Clone or download the repository:
 
@@ -48,7 +48,7 @@ ShareBridge/
 
 ## Step 2 — Create portable R (one-time setup)
 
-ShareBridge can bundle a stripped-down copy of R inside every deployment so end users need nothing installed. You only do this once per R version.
+Shiny ShareBridge can bundle a stripped-down copy of R inside every deployment so end users need nothing installed. You only do this once per R version.
 
 1. Open `PublishApp.hta`
 2. Expand **Framework setup**
@@ -59,7 +59,7 @@ ShareBridge can bundle a stripped-down copy of R inside every deployment so end 
 This creates `R-portable-master/` in the framework folder. Future builds copy from there automatically.
 
 ::: callout-tip
-Skip this step if your end users already have R installed. ShareBridge will use their system R as a fallback.
+Skip this step if your end users already have R installed. Shiny ShareBridge will use their system R as a fallback.
 :::
 
 ---
@@ -80,14 +80,14 @@ If your environment blocks `.hta` files via Group Policy, use `publish.bat` inst
     <div>
       <strong>Select source folder</strong><br>
       Click <strong>Browse</strong> next to <em>App folder</em> and select the folder containing your
-      <code>app.R</code> (or <code>ui.R</code> + <code>server.R</code>). ShareBridge validates the
+      <code>app.R</code> (or <code>ui.R</code> + <code>server.R</code>). Shiny ShareBridge validates the
       structure immediately and shows a green badge if it looks correct.
     </div>
   </li>
   <li>
     <div>
       <strong>Review detected packages</strong><br>
-      ShareBridge scans your app code and lists all packages it found. Add any extras the scanner
+      Shiny ShareBridge scans your app code and lists all packages it found. Add any extras the scanner
       might miss (dynamic loading, etc.) in the <em>Additional packages</em> box.
     </div>
   </li>
@@ -139,7 +139,7 @@ Subsequent builds of the same app are faster because packages are already on dis
 
 ## Step 6 — Health check and test launch
 
-After a successful build, ShareBridge automatically runs a **health check** that verifies:
+After a successful build, Shiny ShareBridge automatically runs a **health check** that verifies:
 
 - All required framework files are present
 - The `app/` folder exists

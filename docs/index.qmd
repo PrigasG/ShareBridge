@@ -1,5 +1,5 @@
 ---
-title: "ShareBridge"
+title: "Shiny ShareBridge"
 description: "Portable Shiny app deployment for restricted Windows environments"
 page-layout: full
 toc: false
@@ -7,7 +7,7 @@ toc: false
 
 ```{=html}
 <div class="hero">
-  <h1>ShareBridge</h1>
+  <h1>Shiny ShareBridge</h1>
   <p class="lead">
     Package and distribute Shiny apps to Windows users who have no admin rights,
     no R installation, and no Shiny Server — just a SharePoint sync.
@@ -19,16 +19,16 @@ toc: false
 
 <br>
 
-## What is ShareBridge?
+## What is Shiny ShareBridge?
 
-ShareBridge is a local deployment framework for packaging Shiny apps into a single self-contained folder that end users can run by double-clicking a file. It is designed for teams that work inside restricted Windows environments where:
+Shiny ShareBridge is a local deployment framework for packaging Shiny apps into a single self-contained folder that end users can run by double-clicking a file. It is designed for teams that work inside restricted Windows environments where:
 
 - Users do not have admin rights
 - Installing R or RStudio on every machine is impractical
 - Shiny Server or Posit Connect is not available
 - Distribution happens through SharePoint or OneDrive
 
-ShareBridge handles everything: bundling your app code, detecting and installing all package dependencies, copying a stripped portable R, and generating a clean launcher that opens the app in a friendly browser URL like `http://sharebridge-myapp.localhost:3670`.
+Shiny ShareBridge handles everything: bundling your app code, detecting and installing all package dependencies, copying a stripped portable R, and generating a clean launcher that opens the app in a friendly browser URL like `http://sharebridge-myapp.localhost:3670`.
 
 ---
 
@@ -109,7 +109,7 @@ ShareBridge handles everything: bundling your app code, detecting and installing
   <div class="feature-card">
     <span class="icon">🔬</span>
     <h3>Health check & test launch</h3>
-    <p>After every build, ShareBridge checks that all required files and packages are present, then lets you test-launch with one click.</p>
+    <p>After every build, Shiny ShareBridge checks that all required files and packages are present, then lets you test-launch with one click.</p>
   </div>
 
   <div class="feature-card">
@@ -134,7 +134,7 @@ ShareBridge handles everything: bundling your app code, detecting and installing
 
 ## Quick install
 
-ShareBridge is not a CRAN package — it is a framework folder. To get started:
+Shiny ShareBridge is not a CRAN package — it is a framework folder. To get started:
 
 1. Clone or download the repository
 2. Open `PublishApp.hta` to launch the Publisher UI
