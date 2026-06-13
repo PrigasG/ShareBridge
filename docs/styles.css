@@ -142,13 +142,14 @@
 
 /* ---------- Callout overrides ---------- */
 .callout {
-  border-radius: 10px;
-  border-width: 1px;
+  border-radius: 10px !important;
+  border-width: 1px !important;
+  border-left-width: 1px !important;
 }
-.callout-tip    { background: #f0fdf4; border-color: #16a34a; }
-.callout-note   { background: var(--sb-blue-light); border-color: var(--sb-blue); }
-.callout-warning{ background: #fffbeb; border-color: #d97706; }
-.callout-important { background: #fef2f2; border-color: #dc2626; }
+.callout-tip    { background: #f0fdf4; border-color: #16a34a !important; }
+.callout-note   { background: var(--sb-blue-light); border-color: var(--sb-blue) !important; }
+.callout-warning{ background: #fffbeb; border-color: #d97706 !important; }
+.callout-important { background: #fef2f2; border-color: #dc2626 !important; }
 
 /* ---------- Reference table ---------- */
 .ref-table th {
