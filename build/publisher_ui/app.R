@@ -653,6 +653,55 @@ css_features <- tags$style(HTML("
     margin-top: 4px;
   }
 
+  .action-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .mini-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .mini-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    font-size: 13px;
+    color: #374151;
+  }
+
+  .mini-item.ok { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+  .mini-item.warn { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+  .mini-item.fail { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+  .mini-item.info { background: #eff6ff; border-color: #bfdbfe; color: #1e3a8a; }
+  .mini-mark {
+    width: 18px;
+    flex-shrink: 0;
+    font-weight: 700;
+    text-align: center;
+  }
+
+  .recipe-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: end;
+  }
+
+  @media (max-width: 640px) {
+    .recipe-row { grid-template-columns: 1fr; }
+    .summary-grid { grid-template-columns: 1fr; }
+  }
+
   .btn-test-launch {
     padding: 8px 16px;
     font-size: 13px;
@@ -680,6 +729,31 @@ info_label <- function(label, info) {
 resource_link <- function(label, href) {
   tags$a(class = "resource-link", href = href, target = "_blank", rel = "noopener noreferrer", label)
 }
+
+mini_item <- function(text, state = "info", detail = NULL) {
+  mark <- switch(state,
+    ok = "\u2713",
+    warn = "!",
+    fail = "\u2717",
+    info = "i",
+    "i"
+  )
+  div(class = paste("mini-item", state),
+      span(class = "mini-mark", mark),
+      div(
+        div(text),
+        if (!is.null(detail) && nzchar(detail)) div(class = "health-detail", detail)
+      )
+  )
+}
+
+recipe_choices <- c(
+  "SharePoint offline deployment" = "sharepoint",
+  "Small app, no portable R" = "small",
+  "Report app with Pandoc" = "report",
+  "Hosted validation only" = "validate",
+  "Upload inspection only" = "inspect"
+)
 
 source_path_control <- if (hosted_mode) {
   tagList(
@@ -816,8 +890,26 @@ ui <- fluidPage(
 
   uiOutput("build_overlay"),
   uiOutput("status_bar"),
+  uiOutput("hosted_inspector_ui"),
 
   div(class = "section-stack",
+
+      div(class = "card",
+          h3("Recipes and examples"),
+          div(class = "recipe-row",
+              selectInput("recipe_select", "Build recipe", choices = recipe_choices, width = "100%"),
+              actionButton("apply_recipe", "Apply", class = "btn-browse")
+          ),
+          div(class = "help-text",
+              "Recipes tune the build options without changing your uploaded or selected app folder."
+          ),
+          div(class = "action-grid",
+              actionButton("load_example_simple", "Simple app", class = "btn-log"),
+              actionButton("load_example_data", "Data app", class = "btn-log"),
+              actionButton("load_example_report", "Report app", class = "btn-log")
+          ),
+          uiOutput("recipe_status_ui")
+      ),
 
       # Main publishing flow
       div(class = "card",
@@ -855,6 +947,7 @@ ui <- fluidPage(
       div(class = "card",
           h3("Detected packages"),
           uiOutput("detected_packages"),
+          uiOutput("dependency_review_ui"),
           div(class = "form-group", style = "margin-top: 14px;",
               textAreaInput(
                 "extra_packages",
@@ -868,6 +961,14 @@ ui <- fluidPage(
                 class = "help-text",
                 "Add packages that the scanner might miss (dynamic loading, etc.)"
               )
+          )
+      ),
+
+      div(class = "card",
+          h3("Preflight"),
+          uiOutput("preflight_ui"),
+          div(class = "toolbar-row",
+              actionButton("run_preflight", "Refresh checks", class = "btn-log")
           )
       ),
 
@@ -929,6 +1030,7 @@ ui <- fluidPage(
                     class = "help-text",
                     "Enable this for apps that render reports or downloadable documents"
                   ),
+                  uiOutput("pandoc_helper_ui"),
                   div(
                     class = "resource-links",
                     resource_link("Pandoc install guide", "https://pandoc.org/installing.html"),
@@ -1044,7 +1146,8 @@ ui <- fluidPage(
                   class = "resource-links",
                   resource_link("Download R for Windows", "https://cran.r-project.org/bin/windows/base/"),
                   resource_link("R licenses", "https://www.r-project.org/Licenses/")
-                )
+                ),
+                uiOutput("portable_r_status_ui")
             ),
             div(class = "inline-checks",
                 checkboxInput("keep_tcltk", "Keep Tcl/Tk runtime", value = FALSE),
@@ -1084,7 +1187,8 @@ ui <- fluidPage(
                 actionButton("refresh_logs", "Refresh list", class = "btn-log"),
                 actionButton("view_log", "View selected log", class = "btn-log"),
                 actionButton("delete_log", "Delete selected log", class = "btn-log-danger"),
-                actionButton("delete_all_logs", "Delete all logs", class = "btn-log-danger")
+                actionButton("delete_all_logs", "Delete all logs", class = "btn-log-danger"),
+                downloadButton("download_diagnostics", "Download diagnostics", class = "btn-log")
             ),
             uiOutput("selected_log_meta"),
             uiOutput("selected_log_summary"),
@@ -1116,7 +1220,8 @@ ui <- fluidPage(
   ),
 
   uiOutput("build_result"),
-  uiOutput("health_check_ui")
+  uiOutput("health_check_ui"),
+  uiOutput("post_build_instructions_ui")
 )
 
 
@@ -1346,6 +1451,176 @@ server <- function(input, output, session) {
       warnings = sum(grepl(warn_pat, lines, ignore.case = FALSE)),
       completed = any(grepl("\\[publish\\] Done\\.|\\[build\\] Done\\.", lines))
     )
+  }
+
+  extra_packages <- reactive({
+    pkgs <- trimws(unlist(strsplit(input$extra_packages %||% "", "\n", fixed = TRUE)))
+    unique(pkgs[nzchar(pkgs)])
+  })
+
+  all_requested_packages <- reactive({
+    sort(unique(c(rv$detected_pkgs, extra_packages())))
+  })
+
+  scan_app_files <- function(src) {
+    if (!nzchar(src) || !dir.exists(src)) return(character(0))
+    files <- list.files(src, recursive = TRUE, full.names = TRUE, all.files = TRUE, no.. = TRUE)
+    files[file.info(files)$isdir %in% FALSE]
+  }
+
+  detect_path_risks <- function(src) {
+    files <- scan_app_files(src)
+    code_files <- files[grepl("\\.(R|r|Rmd|qmd)$", files)]
+    if (!length(code_files)) return(character(0))
+
+    lines <- unlist(lapply(code_files, function(path) {
+      tryCatch(readLines(path, warn = FALSE), error = function(e) character(0))
+    }), use.names = FALSE)
+    lines <- lines[nzchar(lines)]
+    if (!length(lines)) return(character(0))
+
+    risks <- character(0)
+    if (any(grepl("[A-Za-z]:\\\\|[A-Za-z]:/", lines))) {
+      risks <- c(risks, "Windows drive paths found in code")
+    }
+    if (any(grepl("\\\\\\\\[^\\\\]+\\\\[^\\\\]+", lines))) {
+      risks <- c(risks, "Network share paths found in code")
+    }
+    if (any(grepl("setwd\\s*\\(", lines))) {
+      risks <- c(risks, "setwd() found")
+    }
+    if (any(grepl("choose\\.dir|file\\.choose|choose\\.files", lines))) {
+      risks <- c(risks, "Interactive local file chooser found")
+    }
+    unique(risks)
+  }
+
+  dependency_review <- reactive({
+    pkgs <- all_requested_packages()
+    if (!length(pkgs)) {
+      return(list(items = list(mini_item("Select or upload an app to scan package dependencies.", "info"))))
+    }
+
+    report_pkgs <- intersect(pkgs, c("rmarkdown", "knitr", "quarto", "pagedown", "officer", "flextable"))
+    data_pkgs <- intersect(pkgs, c("DBI", "odbc", "RSQLite", "pool", "arrow", "duckdb"))
+    web_pkgs <- intersect(pkgs, c("bslib", "htmltools", "htmlwidgets", "DT", "plotly", "leaflet"))
+
+    items <- list(
+      mini_item(paste(length(pkgs), "package(s) requested"), "ok", paste(pkgs, collapse = ", "))
+    )
+    if (length(report_pkgs)) {
+      items <- c(items, list(mini_item("Report/document packages detected", "warn",
+                                       "Turn on Pandoc when this app renders R Markdown, Quarto, Word, PDF, or HTML reports.")))
+    }
+    if (length(data_pkgs)) {
+      items <- c(items, list(mini_item("Data access packages detected", "info",
+                                       "Confirm credentials and external data paths are supplied at runtime, not only on your computer.")))
+    }
+    if (length(web_pkgs)) {
+      items <- c(items, list(mini_item("Interactive UI packages detected", "ok",
+                                       "These are common Shiny dependencies and will be included in the package bundle.")))
+    }
+    if (!"shiny" %in% pkgs) {
+      items <- c(items, list(mini_item("shiny was not detected", "warn",
+                                       "ShareBridge normally adds shiny automatically, but review this if the app has unusual startup code.")))
+    }
+    list(items = items)
+  })
+
+  preflight_checks <- reactive({
+    src <- trimws(input$source_dir %||% "")
+    out <- trimws(input$output_dir %||% "")
+    files <- scan_app_files(src)
+    risks <- detect_path_risks(src)
+    pkgs <- all_requested_packages()
+
+    checks <- list()
+    add <- function(text, state = "info", detail = NULL) {
+      checks[[length(checks) + 1L]] <<- list(text = text, state = state, detail = detail)
+    }
+
+    add(if (nzchar(src) && dir.exists(src)) "Source app folder is available" else "Select or upload a source app folder",
+        if (nzchar(src) && dir.exists(src)) "ok" else "fail")
+    add(if (isTRUE(rv$source_valid)) rv$source_validation_msg else "App entry point not confirmed",
+        if (isTRUE(rv$source_valid)) "ok" else "fail")
+    add(if (nzchar(input$app_name %||% "")) "App name is set" else "App name is missing",
+        if (nzchar(input$app_name %||% "")) "ok" else "fail")
+    add(if (nzchar(out)) "Output path is set" else "Output path is missing",
+        if (nzchar(out)) "ok" else "fail",
+        if (hosted_mode) "Hosted output is generated inside the server session and returned as a zip." else NULL)
+    add(if (!is.null(rv$build_rscript_path)) "Build Rscript is available" else "Build Rscript is missing",
+        if (!is.null(rv$build_rscript_path)) "ok" else "fail")
+    add(if (portable_r_exists()) "Portable R bundle found" else "Portable R bundle not found",
+        if (portable_r_exists()) "ok" else "warn",
+        "End users need a bundled R runtime unless you intentionally build a lightweight package-only output.")
+    add(if (length(pkgs)) paste(length(pkgs), "package(s) selected") else "No packages detected yet",
+        if (length(pkgs)) "ok" else "warn")
+    add(if (length(files)) paste(length(files), "app file(s) visible to the publisher") else "No app files visible yet",
+        if (length(files)) "ok" else "warn")
+    if (length(risks)) {
+      add("Review hard-coded or interactive paths", "warn", paste(risks, collapse = "; "))
+    } else if (nzchar(src) && dir.exists(src)) {
+      add("No obvious local path risks found in R/Rmd/qmd files", "ok")
+    }
+    if (isTRUE(input$include_pandoc)) {
+      pandoc_dir <- file.path(rv$framework_dir %||% "", "pandoc")
+      add(if (file.exists(file.path(pandoc_dir, "pandoc.exe"))) "Pandoc executable found in framework" else "Pandoc option is on, but pandoc.exe is not bundled yet",
+          if (file.exists(file.path(pandoc_dir, "pandoc.exe"))) "ok" else "warn",
+          "Download Pandoc and place its files under the framework pandoc folder before building report apps.")
+    }
+
+    checks
+  })
+
+  write_example_app <- function(kind) {
+    root <- tempfile(paste0("sharebridge_example_", kind, "_"))
+    dir.create(root, recursive = TRUE, showWarnings = FALSE)
+    if (identical(kind, "data")) {
+      dir.create(file.path(root, "data"), showWarnings = FALSE)
+      write.csv(head(mtcars, 12), file.path(root, "data", "cars.csv"), row.names = FALSE)
+      writeLines(c(
+        "library(shiny)",
+        "ui <- fluidPage(titlePanel('ShareBridge data example'), tableOutput('cars'))",
+        "server <- function(input, output, session) {",
+        "  cars <- read.csv(file.path('data', 'cars.csv'))",
+        "  output$cars <- renderTable(cars)",
+        "}",
+        "shinyApp(ui, server)"
+      ), file.path(root, "app.R"))
+    } else if (identical(kind, "report")) {
+      writeLines(c(
+        "---",
+        "title: 'ShareBridge report'",
+        "output: html_document",
+        "---",
+        "",
+        "```{r}",
+        "summary(cars)",
+        "```"
+      ), file.path(root, "report.Rmd"))
+      writeLines(c(
+        "library(shiny)",
+        "library(rmarkdown)",
+        "ui <- fluidPage(titlePanel('ShareBridge report example'), downloadButton('report', 'Download report'))",
+        "server <- function(input, output, session) {",
+        "  output$report <- downloadHandler(",
+        "    filename = function() 'sharebridge-report.html',",
+        "    content = function(file) rmarkdown::render('report.Rmd', output_file = file, quiet = TRUE)",
+        "  )",
+        "}",
+        "shinyApp(ui, server)"
+      ), file.path(root, "app.R"))
+    } else {
+      writeLines(c(
+        "library(shiny)",
+        "ui <- fluidPage(titlePanel('ShareBridge simple example'), sliderInput('n', 'Rows', 1, 10, 5), tableOutput('tbl'))",
+        "server <- function(input, output, session) {",
+        "  output$tbl <- renderTable(head(iris, input$n))",
+        "}",
+        "shinyApp(ui, server)"
+      ), file.path(root, "app.R"))
+    }
+    normalizePath(root, winslash = "/", mustWork = TRUE)
   }
 
   # Strip R helpers --------
@@ -1836,6 +2111,62 @@ server <- function(input, output, session) {
     )
   })
 
+  output$post_build_instructions_ui <- renderUI({
+    if (!rv$build_done) return(NULL)
+
+    if (rv$build_success) {
+      items <- list(
+        mini_item("Download or copy the deployment zip", "ok",
+                  if (!is.null(rv$zip_path)) basename(rv$zip_path) else "Create zip output is recommended for sharing."),
+        mini_item("Give users the full extracted deployment folder", "info",
+                  "The folder should include the app, packages, launchers, metadata, and bundled R when needed."),
+        mini_item("Launch with LaunchApp.hta or run.bat", "info",
+                  "These files set up the ShareBridge runtime before starting Shiny.")
+      )
+      if (!portable_r_exists()) {
+        items <- c(items, list(mini_item("Portable R was not found in the framework", "warn",
+                                         "Users may need their own compatible R install unless you add a bundle before rebuilding.")))
+      }
+    } else {
+      items <- list(
+        mini_item("Download diagnostics and review the log summary", "warn",
+                  "The bundle includes the current log, selected saved log, package list, and preflight notes."),
+        mini_item("Check missing packages, path warnings, and Portable R status", "info",
+                  "Most hosted failures come from unavailable system dependencies, missing bundled files, or local-only paths.")
+      )
+    }
+
+    div(class = "card",
+        h3("Next steps"),
+        div(class = "mini-list", do.call(tagList, items))
+    )
+  })
+
+  diagnostic_lines <- reactive({
+    checks <- preflight_checks()
+    chk_lines <- unlist(lapply(checks, function(chk) {
+      paste0("[", toupper(chk$state), "] ", chk$text,
+             if (!is.null(chk$detail) && nzchar(chk$detail)) paste0(" - ", chk$detail) else "")
+    }), use.names = FALSE)
+
+    c(
+      "Shiny ShareBridge Publisher diagnostics",
+      paste("Generated:", format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z")),
+      paste("Hosted mode:", hosted_mode),
+      paste("Framework:", rv$framework_dir %||% ""),
+      paste("Source:", input$source_dir %||% ""),
+      paste("Output:", input$output_dir %||% ""),
+      paste("App name:", input$app_name %||% ""),
+      paste("Build success:", rv$build_success),
+      "",
+      "Packages:",
+      if (length(all_requested_packages())) paste(" -", all_requested_packages()) else " - none detected",
+      "",
+      "Preflight:",
+      if (length(chk_lines)) chk_lines else " - no checks available"
+    )
+  })
+
   # Test launch handler --------
   observeEvent(input$test_launch, {
     req(rv$build_success, !is.null(rv$output_path))
@@ -1964,6 +2295,63 @@ server <- function(input, output, session) {
         )
     )
   })
+
+  output$hosted_inspector_ui <- renderUI({
+    if (!hosted_mode) return(NULL)
+    div(class = "hosted-note",
+        strong("Hosted inspector mode: "),
+        "upload an app folder to validate structure, inspect dependencies, and create a downloadable deployment zip. ",
+        "For native Windows folder browsing and portable R creation, use the local Publisher UI."
+    )
+  })
+
+  output$recipe_status_ui <- renderUI({ NULL })
+
+  apply_recipe <- function(recipe) {
+    updateCheckboxInput(session, "zip_output", value = TRUE)
+    updateCheckboxInput(session, "build_offline_repo", value = identical(recipe, "sharepoint"))
+    updateCheckboxInput(session, "include_pandoc", value = identical(recipe, "report"))
+    updateCheckboxInput(session, "bundle_rmarkdown_support", value = identical(recipe, "report"))
+    updateCheckboxInput(session, "enable_write_mode", value = FALSE)
+
+    if (identical(recipe, "small")) {
+      updateCheckboxInput(session, "build_offline_repo", value = FALSE)
+    }
+
+    recipe_label <- names(recipe_choices)[match(recipe, recipe_choices)]
+    output$recipe_status_ui <- renderUI({
+      div(class = "profile-status ok", paste("Applied recipe:", recipe_label))
+    })
+  }
+
+  observeEvent(input$apply_recipe, {
+    apply_recipe(input$recipe_select %||% "sharepoint")
+  })
+
+  load_example <- function(kind, label) {
+    src <- write_example_app(kind)
+    updateTextInput(session, "source_dir", value = src)
+    updateTextInput(session, "app_name", value = label)
+    safe_name <- gsub("[^A-Za-z0-9_]+", "_", label)
+    safe_name <- gsub("_+", "_", safe_name)
+    updateTextInput(session, "output_dir",
+                    value = normalizePath(file.path(tempdir(), paste0(safe_name, "_deploy")),
+                                          winslash = "/", mustWork = FALSE))
+    if (identical(kind, "report")) {
+      updateTextAreaInput(session, "extra_packages", value = "rmarkdown\nknitr")
+      updateCheckboxInput(session, "include_pandoc", value = TRUE)
+      updateCheckboxInput(session, "bundle_rmarkdown_support", value = TRUE)
+    } else {
+      updateTextAreaInput(session, "extra_packages", value = "")
+    }
+    output$recipe_status_ui <- renderUI({
+      div(class = "profile-status ok", paste("Loaded example:", label))
+    })
+  }
+
+  observeEvent(input$load_example_simple, load_example("simple", "Simple Example"))
+  observeEvent(input$load_example_data, load_example("data", "Data Example"))
+  observeEvent(input$load_example_report, load_example("report", "Report Example"))
 
   # Build overlay --------
   output$build_overlay <- renderUI({
@@ -2297,6 +2685,65 @@ server <- function(input, output, session) {
     tagList(
       div(class = "pkg-list", paste(pkgs, collapse = ", ")),
       div(class = "pkg-count", paste(length(pkgs), "packages detected from code"))
+    )
+  })
+
+  output$dependency_review_ui <- renderUI({
+    review <- dependency_review()
+    div(
+      class = "mini-list",
+      do.call(tagList, review$items)
+    )
+  })
+
+  output$preflight_ui <- renderUI({
+    input$run_preflight
+    checks <- preflight_checks()
+    if (!length(checks)) {
+      return(div(class = "mini-list", mini_item("Select or upload an app to run checks.", "info")))
+    }
+    items <- lapply(checks, function(chk) mini_item(chk$text, chk$state, chk$detail))
+    div(class = "mini-list", do.call(tagList, items))
+  })
+
+  output$pandoc_helper_ui <- renderUI({
+    fdir <- rv$framework_dir
+    pandoc_dir <- if (!is.null(fdir)) file.path(fdir, "pandoc") else ""
+    has_pandoc <- nzchar(pandoc_dir) && file.exists(file.path(pandoc_dir, "pandoc.exe"))
+    div(class = "mini-list",
+        mini_item(
+          if (has_pandoc) "Pandoc executable found" else "Pandoc executable not found in the framework",
+          if (has_pandoc) "ok" else "warn",
+          paste("Expected:", normalizePath(file.path(pandoc_dir, "pandoc.exe"),
+                                           winslash = "/", mustWork = FALSE))
+        ),
+        mini_item(
+          "Bundling Pandoc is usually a licensing and size decision",
+          "info",
+          "ShareBridge can include a pandoc folder when present; otherwise link users to an approved Pandoc download."
+        )
+    )
+  })
+
+  output$portable_r_status_ui <- renderUI({
+    fdir <- rv$framework_dir
+    paths <- if (!is.null(fdir)) c(
+      file.path(fdir, "R-portable-master"),
+      file.path(fdir, "R-portable")
+    ) else character(0)
+    found <- paths[dir.exists(paths)]
+    div(class = "mini-list",
+        mini_item(
+          if (length(found)) "Portable R bundle is available" else "Portable R bundle is missing",
+          if (length(found)) "ok" else "warn",
+          if (length(found)) normalizePath(found[[1]], winslash = "/", mustWork = TRUE)
+          else "Create it locally from a full Windows R installation before publishing deployments for users without R."
+        ),
+        mini_item(
+          "End users need a bundled R runtime after the deployment is zipped",
+          "info",
+          "Unless the target machines already have a compatible R setup, include Portable R with the deployment."
+        )
     )
   })
 
@@ -2851,6 +3298,48 @@ server <- function(input, output, session) {
   output$download_zip <- downloadHandler(
     filename = function() basename(rv$zip_path %||% "deployment.zip"),
     content = function(file) file.copy(rv$zip_path, file),
+    contentType = "application/zip"
+  )
+
+  output$download_diagnostics <- downloadHandler(
+    filename = function() {
+      stamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+      paste0("sharebridge_diagnostics_", stamp, ".zip")
+    },
+    content = function(file) {
+      bundle_dir <- tempfile("sharebridge_diag_")
+      dir.create(bundle_dir, recursive = TRUE, showWarnings = FALSE)
+
+      writeLines(diagnostic_lines(), file.path(bundle_dir, "summary.txt"), useBytes = TRUE)
+      writeLines(rv$log_lines %||% character(0), file.path(bundle_dir, "current_build.log"), useBytes = TRUE)
+      if (!is.null(rv$selected_log_path) && file.exists(rv$selected_log_path)) {
+        file.copy(rv$selected_log_path, file.path(bundle_dir, paste0("selected_", basename(rv$selected_log_path))),
+                  overwrite = TRUE)
+      }
+      if (!is.null(rv$build_log_file) && file.exists(rv$build_log_file)) {
+        file.copy(rv$build_log_file, file.path(bundle_dir, paste0("build_", basename(rv$build_log_file))),
+                  overwrite = TRUE)
+      }
+      if (!is.null(rv$output_path) && dir.exists(rv$output_path)) {
+        for (name in c("req.txt", "app_meta.cfg", "VERSION")) {
+          src_file <- file.path(rv$output_path, name)
+          if (file.exists(src_file)) file.copy(src_file, file.path(bundle_dir, name), overwrite = TRUE)
+        }
+      }
+      if (!is.null(rv$health_check_results)) {
+        jsonlite::write_json(rv$health_check_results, file.path(bundle_dir, "health_check.json"),
+                             auto_unbox = TRUE, pretty = TRUE)
+      }
+
+      old_wd <- getwd()
+      on.exit({
+        setwd(old_wd)
+        unlink(bundle_dir, recursive = TRUE, force = TRUE)
+      }, add = TRUE)
+      setwd(bundle_dir)
+      files <- list.files(bundle_dir, all.files = FALSE, recursive = TRUE)
+      utils::zip(zipfile = file, files = files)
+    },
     contentType = "application/zip"
   )
 }
