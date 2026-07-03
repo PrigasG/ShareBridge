@@ -784,7 +784,7 @@ ui <- fluidPage(
         p("Build portable Shiny app deployments"),
         div(
           class = "resource-links",
-          resource_link("ShareBridge docs", "https://prigasg.github.io/ShareBridge"),
+          resource_link("Shiny ShareBridge docs", "https://prigasg.github.io/ShareBridge/"),
           resource_link("Publisher guide", "https://prigasg.github.io/ShareBridge/publisher-guide.html")
         )
       ),
