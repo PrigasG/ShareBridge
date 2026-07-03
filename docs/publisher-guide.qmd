@@ -124,6 +124,8 @@ At runtime, if `pandoc/pandoc.exe` is present, Shiny ShareBridge sets `RSTUDIO_P
 
 **Important:** Shiny ShareBridge does not copy Pandoc automatically. After building, place a Pandoc installation into the `pandoc/` folder manually. Download from [pandoc.org](https://pandoc.org/installing.html).
 
+Shiny ShareBridge links to the official Pandoc install page and release downloads from the Publisher UI. This keeps the framework small and lets publishers choose the version their environment allows. If you place `pandoc.exe` and its supporting files under the deployment `pandoc/` folder, Shiny ShareBridge will use that bundled copy at runtime.
+
 ### External data directory (DATA_DIR)
 
 For apps that write data which should **not** live inside the synced SharePoint folder (e.g. frequently written outputs, user uploads), set a `DATA_DIR` path here.
@@ -261,3 +263,5 @@ All runtime code, DLLs, NAMESPACE, and DESCRIPTION files are preserved.
 5. Wait for the green success bar
 
 You only need to do this once per R version.
+
+Use the official [R for Windows download](https://cran.r-project.org/bin/windows/base/) as the source for the full R installation. Shiny ShareBridge can strip and bundle that local installation into `R-portable-master/`, but the project does not ship a prebuilt portable R binary by default. If you redistribute deployments with bundled R, retain the applicable R license notices; R is licensed under GPL-2 or GPL-3.

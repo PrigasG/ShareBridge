@@ -1140,7 +1140,7 @@
       "checksum": "ac96b34e902ef87ed73c142b68696d61"
     },
     "build/publisher_ui/app.R": {
-      "checksum": "dc3d021c9d43e64a505543263521899f"
+      "checksum": "a5ef0d32d127ce7cfbf09450ef985f06"
     },
     "build/run_hidden.vbs": {
       "checksum": "7ea25e1c4118e247b00e0480c3a17f3b"
@@ -1176,7 +1176,7 @@
       "checksum": "da47de661b0f289f3654b65ad2545dc7"
     },
     "docs/publisher-guide.qmd": {
-      "checksum": "567126e171464801724f4cee2a64ae7e"
+      "checksum": "f2ea7b4c0a108b1b93c192fe129f3828"
     },
     "docs/reference.qmd": {
       "checksum": "f9a925d68f18c851bb7bd2216230eb7a"

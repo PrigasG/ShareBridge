@@ -607,7 +607,25 @@ css_features <- tags$style(HTML("
     border-radius: 6px;
   }
   .profile-status.ok  { background: #f0fdf4; color: #166534; }
+  .profile-status.warn { background: #fffbeb; color: #92400e; }
   .profile-status.err { background: #fef2f2; color: #991b1b; }
+
+  .resource-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .resource-link {
+    color: #2563eb;
+    font-size: 12px;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(37, 99, 235, 0.35);
+  }
+  .resource-link:hover {
+    color: #1d4ed8;
+    border-bottom-color: #1d4ed8;
+  }
 
   .hosted-note {
     background: #eff6ff;
@@ -649,6 +667,10 @@ info_label <- function(label, info) {
     span(label),
     span(class = "status-info", title = info, `aria-label` = info, "i")
   )
+}
+
+resource_link <- function(label, href) {
+  tags$a(class = "resource-link", href = href, target = "_blank", rel = "noopener noreferrer", label)
 }
 
 source_path_control <- if (hosted_mode) {
@@ -865,6 +887,11 @@ ui <- fluidPage(
                   div(
                     class = "help-text",
                     "Enable this for apps that render reports or downloadable documents"
+                  ),
+                  div(
+                    class = "resource-links",
+                    resource_link("Pandoc install guide", "https://pandoc.org/installing.html"),
+                    resource_link("Pandoc releases", "https://github.com/jgm/pandoc/releases")
                   )
               )
             ),
@@ -950,6 +977,11 @@ ui <- fluidPage(
                 div(
                   class = "help-text",
                   "Select a full R installation to create R-portable for Shiny ShareBridge"
+                ),
+                div(
+                  class = "resource-links",
+                  resource_link("Download R for Windows", "https://cran.r-project.org/bin/windows/base/"),
+                  resource_link("R licenses", "https://www.r-project.org/Licenses/")
                 )
             ),
             div(class = "inline-checks",
@@ -993,6 +1025,7 @@ ui <- fluidPage(
                 actionButton("delete_all_logs", "Delete all logs", class = "btn-log-danger")
             ),
             uiOutput("selected_log_meta"),
+            uiOutput("selected_log_summary"),
             uiOutput("selected_log_preview")
         )
       ),
@@ -1235,6 +1268,20 @@ server <- function(input, output, session) {
     lines <- tryCatch(readLines(path, warn = FALSE), error = function(e) character(0))
     if (length(lines) > tail_lines) lines <- tail(lines, tail_lines)
     lines
+  }
+
+  summarize_log <- function(lines) {
+    if (!length(lines)) {
+      return(list(errors = 0L, warnings = 0L, completed = FALSE))
+    }
+
+    error_pat <- "Error|ERROR|FAIL|failed|Execution halted|non-zero exit status|cannot rename|Access is denied"
+    warn_pat <- "Warning|WARNING|warning"
+    list(
+      errors = sum(grepl(error_pat, lines, ignore.case = FALSE)),
+      warnings = sum(grepl(warn_pat, lines, ignore.case = FALSE)),
+      completed = any(grepl("\\[publish\\] Done\\.|\\[build\\] Done\\.", lines))
+    )
   }
 
   # Strip R helpers --------
@@ -2491,6 +2538,21 @@ server <- function(input, output, session) {
         paste0("File: ", basename(path),
                " | Modified: ", format(info$mtime, "%Y-%m-%d %H:%M:%S"),
                " | Size: ", format(round(info$size / 1024, 1), nsmall = 1), " KB"))
+  })
+
+  output$selected_log_summary <- renderUI({
+    lines <- rv$selected_log_lines
+    if (!length(lines)) return(NULL)
+
+    summary <- summarize_log(lines)
+    status_cls <- if (summary$errors > 0) "err" else if (summary$warnings > 0) "warn" else "ok"
+    status_text <- paste0(
+      "Summary: ",
+      summary$errors, " error-like line(s), ",
+      summary$warnings, " warning line(s), ",
+      if (isTRUE(summary$completed)) "completion marker found" else "no completion marker in preview"
+    )
+    div(class = paste("profile-status", status_cls), status_text)
   })
 
   # Log preview --------
