@@ -596,6 +596,13 @@ css_features <- tags$style(HTML("
     margin-top: 8px;
   }
 
+  .upload-note {
+    color: #4b5563;
+    font-size: 12px;
+    margin-top: -4px;
+    margin-bottom: 8px;
+  }
+
   .btn-test-launch {
     padding: 8px 16px;
     font-size: 13px;
@@ -615,16 +622,26 @@ css_features <- tags$style(HTML("
 
 source_path_control <- if (hosted_mode) {
   tagList(
+    fileInput(
+      "source_zip",
+      "Upload Shiny app zip",
+      accept = ".zip",
+      width = "100%"
+    ),
+    div(
+      class = "upload-note",
+      "Zip the app folder that contains app.R, or ui.R and server.R. ShareBridge will extract it into the hosted session."
+    ),
     textInput(
       "source_dir",
-      label = NULL,
+      label = "Extracted app path or hosted server path",
       value = "",
       width = "100%",
-      placeholder = "/app/examples/my_shiny_app"
+      placeholder = "Upload a zip, or enter a path that already exists on this server"
     ),
     div(
       class = "hosted-note",
-      "Hosted sessions cannot browse folders on your computer. Enter a path that exists inside the hosted runtime, or use the local Publisher UI for Windows folder selection."
+      "Hosted sessions cannot browse folders on your computer. Upload a zipped Shiny app, or use the local Publisher UI for Windows folder selection."
     )
   )
 } else {
@@ -984,6 +1001,8 @@ server <- function(input, output, session) {
     strip_r_proc = NULL,
     strip_r_log_file = NULL,
     strip_r_bat_file = NULL,
+    hosted_source_dir = NULL,
+    hosted_source_upload_msg = "",
     # source validation
     source_valid = FALSE,
     source_validation_msg = "",
@@ -1016,6 +1035,10 @@ server <- function(input, output, session) {
     }
     if (!is.null(temp_bat_file) && file.exists(temp_bat_file)) {
       try(unlink(temp_bat_file), silent = TRUE)
+    }
+    hosted_source_dir <- isolate(rv$hosted_source_dir)
+    if (!is.null(hosted_source_dir) && dir.exists(hosted_source_dir)) {
+      try(unlink(hosted_source_dir, recursive = TRUE, force = TRUE), silent = TRUE)
     }
     if (!is.null(strip_r_bat_file) && file.exists(strip_r_bat_file)) {
       try(unlink(strip_r_bat_file), silent = TRUE)
@@ -1302,6 +1325,30 @@ server <- function(input, output, session) {
       try(unlink(rv$temp_bat_file), silent = TRUE)
     }
     rv$temp_bat_file <- NULL
+  }
+
+  find_extracted_app_dir <- function(root) {
+    has_app <- function(path) {
+      file.exists(file.path(path, "app.R")) ||
+        (
+          file.exists(file.path(path, "ui.R")) &&
+            file.exists(file.path(path, "server.R"))
+        )
+    }
+
+    if (has_app(root)) return(root)
+
+    children <- list.dirs(root, full.names = TRUE, recursive = FALSE)
+    children <- children[dir.exists(children)]
+    hits <- children[vapply(children, has_app, logical(1))]
+    if (length(hits)) return(hits[[1]])
+
+    nested <- list.dirs(root, full.names = TRUE, recursive = TRUE)
+    nested <- nested[dir.exists(nested)]
+    hits <- nested[vapply(nested, has_app, logical(1))]
+    if (length(hits)) return(hits[[1]])
+
+    root
   }
 
   finalize_build <- function(exit_code) {
@@ -1739,6 +1786,12 @@ server <- function(input, output, session) {
     rv$source_validation_msg <- ""
     rv$build_start_time <- NULL
 
+    if (!is.null(rv$hosted_source_dir) && dir.exists(rv$hosted_source_dir)) {
+      try(unlink(rv$hosted_source_dir, recursive = TRUE, force = TRUE), silent = TRUE)
+    }
+    rv$hosted_source_dir <- NULL
+    rv$hosted_source_upload_msg <- ""
+
     cleanup_temp_files()
   })
 
@@ -1760,6 +1813,48 @@ server <- function(input, output, session) {
     if (!is.na(dir) && nzchar(dir)) {
       updateTextInput(session, "output_dir", value = normalizePath(dir, winslash = "/"))
     }
+  })
+
+  observeEvent(input$source_zip, {
+    if (!hosted_mode) return()
+    upload <- input$source_zip
+    if (is.null(upload) || !nrow(upload)) return()
+
+    if (!is.null(rv$hosted_source_dir) && dir.exists(rv$hosted_source_dir)) {
+      try(unlink(rv$hosted_source_dir, recursive = TRUE, force = TRUE), silent = TRUE)
+    }
+
+    extract_root <- tempfile("sharebridge_upload_")
+    dir.create(extract_root, recursive = TRUE, showWarnings = FALSE)
+
+    tryCatch({
+      utils::unzip(upload$datapath[[1]], exdir = extract_root)
+      app_dir <- find_extracted_app_dir(extract_root)
+      app_dir <- normalizePath(app_dir, winslash = "/", mustWork = TRUE)
+
+      rv$hosted_source_dir <- extract_root
+      rv$hosted_source_upload_msg <- paste("Uploaded app extracted to", app_dir)
+      updateTextInput(session, "source_dir", value = app_dir)
+
+      if (!nzchar(input$app_name %||% "")) {
+        app_label <- tools::file_path_sans_ext(upload$name[[1]])
+        updateTextInput(session, "app_name", value = app_label)
+      }
+
+      if (!nzchar(input$output_dir %||% "")) {
+        safe_name <- gsub("[^A-Za-z0-9_]+", "_", tools::file_path_sans_ext(upload$name[[1]]))
+        safe_name <- gsub("_+", "_", safe_name)
+        safe_name <- gsub("^_|_$", "", safe_name)
+        if (!nzchar(safe_name)) safe_name <- "sharebridge_app"
+        updateTextInput(session, "output_dir",
+                        value = normalizePath(file.path(tempdir(), paste0(safe_name, "_deploy")),
+                                              winslash = "/", mustWork = FALSE))
+      }
+    }, error = function(e) {
+      rv$hosted_source_dir <- NULL
+      rv$hosted_source_upload_msg <- paste("Upload failed:", conditionMessage(e))
+      updateTextInput(session, "source_dir", value = "")
+    })
   })
 
   # Auto-fill output dir --------
@@ -1817,14 +1912,21 @@ server <- function(input, output, session) {
 
   output$source_validation_ui <- renderUI({
     src <- trimws(input$source_dir %||% "")
-    if (!nzchar(src)) return(NULL)
+    upload_msg <- rv$hosted_source_upload_msg %||% ""
+    upload_ui <- if (hosted_mode && nzchar(upload_msg)) {
+      div(class = "help-text", upload_msg)
+    } else {
+      NULL
+    }
+
+    if (!nzchar(src)) return(upload_ui)
     if (!dir.exists(src)) {
-      return(span(class = "validation-badge validation-err", "Folder not found"))
+      return(tagList(upload_ui, span(class = "validation-badge validation-err", "Folder not found")))
     }
     if (rv$source_valid) {
-      span(class = "validation-badge validation-ok", rv$source_validation_msg)
+      tagList(upload_ui, span(class = "validation-badge validation-ok", rv$source_validation_msg))
     } else {
-      span(class = "validation-badge validation-err", rv$source_validation_msg)
+      tagList(upload_ui, span(class = "validation-badge validation-err", rv$source_validation_msg))
     }
   })
 
@@ -1996,33 +2098,48 @@ server <- function(input, output, session) {
     )
     writeLines(rv$log_lines, rv$build_log_file, useBytes = TRUE)
 
-    # Launch hidden subprocess --------
+    # Launch subprocess --------
     tryCatch({
-      bat_quote <- function(x) {
-        if (startsWith(x, "--")) return(x)
-        paste0('"', x, '"')
+      if (hosted_mode) {
+        full_cmd <- paste(c(shQuote(rscript), shQuote(cli_args)), collapse = " ")
+        temp_sh <- tempfile("sb_build_", fileext = ".sh")
+        sh_lines <- c("#!/bin/sh", paste0(full_cmd, ' >> ', shQuote(rv$build_log_file), ' 2>&1'))
+        writeLines(sh_lines, temp_sh, useBytes = TRUE)
+        Sys.chmod(temp_sh, mode = "0700")
+        rv$temp_bat_file <- temp_sh
+
+        rv$build_proc <- processx::process$new(
+          command = "sh",
+          args = temp_sh,
+          stdout = "|", stderr = "|",
+          cleanup = FALSE)
+      } else {
+        bat_quote <- function(x) {
+          if (startsWith(x, "--")) return(x)
+          paste0('"', x, '"')
+        }
+
+        cmd_parts <- c(
+          paste0('"', rscript, '"'),
+          vapply(cli_args, bat_quote, character(1), USE.NAMES = FALSE)
+        )
+        full_cmd <- paste(cmd_parts, collapse = " ")
+
+        temp_bat <- tempfile("sb_build_", fileext = ".bat")
+        bat_lines <- c("@echo off", paste0(full_cmd, ' >> "', rv$build_log_file, '" 2>&1'))
+        writeLines(bat_lines, temp_bat, useBytes = TRUE)
+        rv$temp_bat_file <- temp_bat
+
+        vbs_path <- normalizePath(
+          file.path(rv$framework_dir, "build", "run_hidden.vbs"),
+          winslash = "/", mustWork = TRUE)
+
+        rv$build_proc <- processx::process$new(
+          command = "wscript.exe",
+          args = c("//nologo", "//B", vbs_path, temp_bat),
+          stdout = "|", stderr = "|",
+          windows_hide_window = TRUE, cleanup = FALSE)
       }
-
-      cmd_parts <- c(
-        paste0('"', rscript, '"'),
-        vapply(cli_args, bat_quote, character(1), USE.NAMES = FALSE)
-      )
-      full_cmd <- paste(cmd_parts, collapse = " ")
-
-      temp_bat <- tempfile("sb_build_", fileext = ".bat")
-      bat_lines <- c("@echo off", paste0(full_cmd, ' >> "', rv$build_log_file, '" 2>&1'))
-      writeLines(bat_lines, temp_bat, useBytes = TRUE)
-      rv$temp_bat_file <- temp_bat
-
-      vbs_path <- normalizePath(
-        file.path(rv$framework_dir, "build", "run_hidden.vbs"),
-        winslash = "/", mustWork = TRUE)
-
-      rv$build_proc <- processx::process$new(
-        command = "wscript.exe",
-        args = c("//nologo", "//B", vbs_path, temp_bat),
-        stdout = "|", stderr = "|",
-        windows_hide_window = TRUE, cleanup = FALSE)
 
     }, error = function(e) {
       rv$building <- FALSE
