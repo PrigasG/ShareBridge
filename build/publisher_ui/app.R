@@ -714,14 +714,14 @@ output_path_control <- if (hosted_mode) {
   tagList(
     textInput(
       "output_dir",
-      label = NULL,
+      label = "Generated server output path",
       value = "",
       width = "100%",
-      placeholder = "/tmp/MyApp_deploy"
+      placeholder = "Generated after upload or app name"
     ),
     div(
       class = "hosted-note",
-      "Hosted output is written inside the server container. Use local ShareBridge when you need to build a Windows deployment from files on your machine."
+      "Hosted output is written inside the server session and returned as a zip download. You cannot select a folder on your computer from Connect or Hugging Face."
     )
   )
 } else {
@@ -772,7 +772,12 @@ ui <- fluidPage(
   div(class = "header",
       div(
         h2("Shiny ShareBridge Publisher"),
-        p("Build portable Shiny app deployments")
+        p("Build portable Shiny app deployments"),
+        div(
+          class = "resource-links",
+          resource_link("ShareBridge docs", "https://prigasg.github.io/ShareBridge"),
+          resource_link("Publisher guide", "https://prigasg.github.io/ShareBridge/publisher-guide.html")
+        )
       ),
       uiOutput("clear_button_ui")
   ),
@@ -850,7 +855,11 @@ ui <- fluidPage(
           div(class = "inline-checks",
               checkboxInput("zip_output", "Create zip file", value = TRUE),
               checkboxInput("build_offline_repo", "Build offline repo", value = FALSE)
-          )
+          ),
+          if (hosted_mode) {
+            div(class = "hosted-note",
+                "Hosted builds always create a zip so the deployment can be downloaded from the success bar.")
+          }
       ),
 
       # Advanced app features
@@ -910,13 +919,25 @@ ui <- fluidPage(
                   label = NULL,
                   value = "",
                   width = "100%",
-                  placeholder = "\\\\server\\share\\AppData  or  C:\\SharedData\\MyApp"
+                  placeholder = if (hosted_mode) "\\\\server\\share\\AppData" else "\\\\server\\share\\AppData  or  C:\\SharedData\\MyApp"
                 ),
                 div(
                   class = "help-text",
-                  "Written to app_meta.cfg as DATA_DIR. At runtime Shiny ShareBridge sets SHAREBRIDGE_DATA_DIR. Use for app data that should live outside the synced deployment folder."
+                  if (hosted_mode) {
+                    "Optional runtime path written to app_meta.cfg. Put files to bundle inside the uploaded app zip; use DATA_DIR only for paths the deployed Windows app will use later."
+                  } else {
+                    "Written to app_meta.cfg as DATA_DIR. At runtime Shiny ShareBridge sets SHAREBRIDGE_DATA_DIR. Use for app data that should live outside the synced deployment folder."
+                  }
+                ),
+                if (hosted_mode) {
+                  div(class = "hosted-note",
+                      "To include data files in a hosted build, put them inside the uploaded Shiny app zip. DATA_DIR is only a path recorded for the deployed app to use later.")
+                }
+                else NULL
+            ),
+            div(class = "resource-links",
+                resource_link("Runtime config reference", "https://prigasg.github.io/ShareBridge/reference.html")
                 )
-            )
         )
       ),
 
@@ -1873,6 +1894,7 @@ server <- function(input, output, session) {
     updateTextInput(session, "source_dir", value = "")
     updateTextInput(session, "app_name", value = "")
     updateTextInput(session, "output_dir", value = "")
+    updateTextInput(session, "data_dir", value = "")
     updateTextAreaInput(session, "extra_packages", value = "")
     updateCheckboxInput(session, "zip_output", value = TRUE)
     updateCheckboxInput(session, "build_offline_repo", value = FALSE)
@@ -2181,7 +2203,7 @@ server <- function(input, output, session) {
     if (!is.null(rv$req_extra_file) && file.exists(rv$req_extra_file)) {
       cli_args <- c(cli_args, "--req_extra_file", rv$req_extra_file)
     }
-    if (isTRUE(input$zip_output)) {
+    if (hosted_mode || isTRUE(input$zip_output)) {
       cli_args <- c(cli_args, "--zip")
     }
     if (isTRUE(input$build_offline_repo)) {
