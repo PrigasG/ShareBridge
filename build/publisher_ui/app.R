@@ -685,12 +685,15 @@ source_path_control <- if (hosted_mode) {
       class = "upload-note",
       "Zip the app folder that contains app.R, or ui.R and server.R. ShareBridge will extract it into the hosted session."
     ),
-    textInput(
-      "source_dir",
-      label = "Extracted app path or hosted server path",
-      value = "",
-      width = "100%",
-      placeholder = "Upload a zip, or enter a path that already exists on this server"
+    div(class = "path-row",
+        textInput(
+          "source_dir",
+          label = "Extracted app path or hosted server path",
+          value = "",
+          width = "100%",
+          placeholder = "Upload a zip, or enter a path that already exists on this server"
+        ),
+        actionButton("browse_source", "Browse server", class = "btn-browse")
     ),
     div(
       class = "hosted-note",
@@ -712,12 +715,15 @@ source_path_control <- if (hosted_mode) {
 
 output_path_control <- if (hosted_mode) {
   tagList(
-    textInput(
-      "output_dir",
-      label = "Generated server output path",
-      value = "",
-      width = "100%",
-      placeholder = "Generated after upload or app name"
+    div(class = "path-row",
+        textInput(
+          "output_dir",
+          label = "Generated server output path",
+          value = "",
+          width = "100%",
+          placeholder = "Generated after upload or app name"
+        ),
+        actionButton("browse_output", "Browse server", class = "btn-browse")
     ),
     div(
       class = "hosted-note",
@@ -739,12 +745,15 @@ output_path_control <- if (hosted_mode) {
 
 r_source_path_control <- if (hosted_mode) {
   tagList(
-    textInput(
-      "r_source_dir",
-      label = NULL,
-      value = "",
-      width = "100%",
-      placeholder = "/usr/local/lib/R"
+    div(class = "path-row",
+        textInput(
+          "r_source_dir",
+          label = NULL,
+          value = "",
+          width = "100%",
+          placeholder = "/usr/local/lib/R"
+        ),
+        actionButton("browse_r_source", "Browse server", class = "btn-browse")
     ),
     div(
       class = "hosted-note",
@@ -914,12 +923,19 @@ ui <- fluidPage(
                     "Optional path written to app_meta.cfg and exposed as SHAREBRIDGE_DATA_DIR so app data can live outside the synced deployment folder."
                   }
                 ),
-                textInput(
-                  "data_dir",
-                  label = NULL,
-                  value = "",
-                  width = "100%",
-                  placeholder = if (hosted_mode) "\\\\server\\share\\AppData" else "\\\\server\\share\\AppData  or  C:\\SharedData\\MyApp"
+                div(class = "path-row",
+                    textInput(
+                      "data_dir",
+                      label = NULL,
+                      value = "",
+                      width = "100%",
+                      placeholder = if (hosted_mode) "\\\\server\\share\\AppData" else "\\\\server\\share\\AppData  or  C:\\SharedData\\MyApp"
+                    ),
+                    actionButton(
+                      "browse_data_dir",
+                      if (hosted_mode) "Browse server" else "Browse",
+                      class = "btn-browse"
+                    )
                 ),
                 div(
                   class = "help-text",
@@ -1116,6 +1132,8 @@ server <- function(input, output, session) {
     strip_r_bat_file = NULL,
     hosted_source_dir = NULL,
     hosted_source_upload_msg = "",
+    server_browser_target = NULL,
+    server_browser_path = NULL,
     # source validation
     source_valid = FALSE,
     source_validation_msg = "",
@@ -1476,6 +1494,40 @@ server <- function(input, output, session) {
     if (length(hits)) return(hits[[1]])
 
     root
+  }
+
+  normalize_existing_dir <- function(path, fallback = getwd()) {
+    path <- trimws(path %||% "")
+    if (nzchar(path) && dir.exists(path)) {
+      return(normalizePath(path, winslash = "/", mustWork = TRUE))
+    }
+    fallback <- trimws(fallback %||% "")
+    if (nzchar(fallback) && dir.exists(fallback)) {
+      return(normalizePath(fallback, winslash = "/", mustWork = TRUE))
+    }
+    normalizePath(getwd(), winslash = "/", mustWork = TRUE)
+  }
+
+  show_server_dir_browser <- function(target, current = "", fallback = getwd()) {
+    rv$server_browser_target <- target
+    rv$server_browser_path <- normalize_existing_dir(current, fallback)
+
+    showModal(modalDialog(
+      title = "Browse server folders",
+      size = "m",
+      easyClose = TRUE,
+      div(class = "form-group",
+          textInput("server_browser_path", "Current folder",
+                    value = rv$server_browser_path, width = "100%")
+      ),
+      uiOutput("server_browser_dirs"),
+      footer = tagList(
+        actionButton("server_browser_up", "Up", class = "btn-log"),
+        actionButton("server_browser_open", "Open selected", class = "btn-log"),
+        modalButton("Cancel"),
+        actionButton("server_browser_use", "Use this folder", class = "btn-browse")
+      )
+    ))
   }
 
   finalize_build <- function(exit_code) {
@@ -1930,9 +1982,65 @@ server <- function(input, output, session) {
     cleanup_temp_files()
   })
 
+  output$server_browser_dirs <- renderUI({
+    path <- normalize_existing_dir(input$server_browser_path %||% rv$server_browser_path, getwd())
+
+    dirs <- tryCatch(list.dirs(path, full.names = FALSE, recursive = FALSE), error = function(e) character(0))
+    dirs <- dirs[nzchar(dirs)]
+    dirs <- sort(dirs)
+
+    if (!length(dirs)) {
+      return(div(class = "folder-picker-empty", "No subfolders found. Use this folder or go up."))
+    }
+
+    selectInput("server_browser_child", "Subfolders", choices = dirs, width = "100%")
+  })
+
+  observeEvent(input$server_browser_path, {
+    path <- trimws(input$server_browser_path %||% "")
+    if (nzchar(path) && dir.exists(path)) {
+      rv$server_browser_path <- normalizePath(path, winslash = "/", mustWork = TRUE)
+    }
+  }, ignoreInit = TRUE)
+
+  observeEvent(input$server_browser_up, {
+    path <- normalize_existing_dir(rv$server_browser_path, getwd())
+    parent <- dirname(path)
+    if (!identical(parent, path) && dir.exists(parent)) {
+      parent <- normalizePath(parent, winslash = "/", mustWork = TRUE)
+      rv$server_browser_path <- parent
+      updateTextInput(session, "server_browser_path", value = parent)
+    }
+  })
+
+  observeEvent(input$server_browser_open, {
+    child <- input$server_browser_child %||% ""
+    if (!nzchar(child)) return()
+
+    path <- normalize_existing_dir(rv$server_browser_path, getwd())
+    next_path <- file.path(path, child)
+    if (dir.exists(next_path)) {
+      next_path <- normalizePath(next_path, winslash = "/", mustWork = TRUE)
+      rv$server_browser_path <- next_path
+      updateTextInput(session, "server_browser_path", value = next_path)
+    }
+  })
+
+  observeEvent(input$server_browser_use, {
+    target <- rv$server_browser_target %||% ""
+    path <- normalize_existing_dir(input$server_browser_path %||% rv$server_browser_path, getwd())
+    if (nzchar(target)) {
+      updateTextInput(session, target, value = path)
+    }
+    removeModal()
+  })
+
   # Folder browsing --------
   observeEvent(input$browse_source, {
-    if (hosted_mode) return()
+    if (hosted_mode) {
+      show_server_dir_browser("source_dir", input$source_dir, rv$hosted_source_dir %||% getwd())
+      return()
+    }
     dir <- tryCatch(utils::choose.dir(caption = "Select Shiny app folder"), error = function(e) NA)
     if (!is.na(dir) && nzchar(dir)) {
       updateTextInput(session, "source_dir", value = normalizePath(dir, winslash = "/"))
@@ -1943,10 +2051,24 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$browse_output, {
-    if (hosted_mode) return()
+    if (hosted_mode) {
+      show_server_dir_browser("output_dir", input$output_dir, tempdir())
+      return()
+    }
     dir <- tryCatch(utils::choose.dir(caption = "Select output folder"), error = function(e) NA)
     if (!is.na(dir) && nzchar(dir)) {
       updateTextInput(session, "output_dir", value = normalizePath(dir, winslash = "/"))
+    }
+  })
+
+  observeEvent(input$browse_data_dir, {
+    if (hosted_mode) {
+      show_server_dir_browser("data_dir", input$data_dir, tempdir())
+      return()
+    }
+    dir <- tryCatch(utils::choose.dir(caption = "Select external data directory"), error = function(e) NA)
+    if (!is.na(dir) && nzchar(dir)) {
+      updateTextInput(session, "data_dir", value = normalizePath(dir, winslash = "/"))
     }
   })
 
@@ -2289,7 +2411,10 @@ server <- function(input, output, session) {
 
   # Strip R — browse --------
   observeEvent(input$browse_r_source, {
-    if (hosted_mode) return()
+    if (hosted_mode) {
+      show_server_dir_browser("r_source_dir", input$r_source_dir, Sys.getenv("R_HOME", unset = getwd()))
+      return()
+    }
     dir <- tryCatch(utils::choose.dir(caption = "Select full R installation folder"), error = function(e) NA)
     if (!is.na(dir) && nzchar(dir)) {
       updateTextInput(session, "r_source_dir", value = normalizePath(dir, winslash = "/"))
