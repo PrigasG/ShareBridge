@@ -645,9 +645,12 @@ css_features <- tags$style(HTML("
     margin-bottom: 8px;
   }
 
-  .directory-upload input[type='file'] {
-    width: 100%;
-    font-size: 13px;
+  .directory-upload input[type='file'] { display: none; }
+  .directory-upload .btn-browse {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 4px;
   }
 
   .btn-test-launch {
@@ -682,14 +685,14 @@ source_path_control <- if (hosted_mode) {
   tagList(
     tags$div(
       class = "form-group directory-upload",
-      tags$label("Browse local app folder"),
       tags$input(
         id = "source_folder_upload",
         type = "file",
         multiple = NA,
         webkitdirectory = NA,
         directory = NA
-      )
+      ),
+      tags$label(class = "btn-browse", `for` = "source_folder_upload", "Browse...")
     ),
     tags$script(HTML("
       $(document).on('change', '#source_folder_upload', function(e) {
@@ -700,29 +703,35 @@ source_path_control <- if (hosted_mode) {
         Shiny.setInputValue('source_folder_upload_paths', paths, {priority: 'event'});
       });
     ")),
-    fileInput(
-      "source_zip",
-      "Or upload Shiny app zip",
-      accept = ".zip",
-      width = "100%"
-    ),
     div(
       class = "upload-note",
-      "Browse local app folder opens your computer's folder picker and uploads the selected folder. Zip upload is available as a fallback."
+      "Choose the local folder that contains app.R, or ui.R and server.R. The folder is uploaded into the hosted session."
     ),
-    div(class = "path-row",
-        textInput(
-          "source_dir",
-          label = "Extracted app path or hosted server path",
-          value = "",
-          width = "100%",
-          placeholder = "Upload a zip, or enter a path that already exists on this server"
-        ),
-        actionButton("browse_source", "Browse server", class = "btn-browse")
+    div(
+      style = "display:none;",
+      textInput(
+        "source_dir",
+        label = NULL,
+        value = "",
+        width = "100%"
+      )
+    ),
+    tags$details(
+      class = "collapsible-card",
+      style = "padding: 0; margin: 8px 0 0; border: none;",
+      tags$summary(HTML("<span>Upload zip instead</span>")),
+      div(class = "collapsible-body",
+          fileInput(
+            "source_zip",
+            label = NULL,
+            accept = ".zip",
+            width = "100%"
+          )
+      )
     ),
     div(
       class = "hosted-note",
-      "Hosted sessions can open your browser's local folder picker and upload the selected folder, but the app cannot read a local path without uploading the files."
+      "Hosted sessions use browser upload for local files. After upload, ShareBridge uses the extracted server copy automatically."
     )
   )
 } else {
@@ -740,19 +749,18 @@ source_path_control <- if (hosted_mode) {
 
 output_path_control <- if (hosted_mode) {
   tagList(
-    div(class = "path-row",
-        textInput(
-          "output_dir",
-          label = "Generated server output path",
-          value = "",
-          width = "100%",
-          placeholder = "Generated after upload or app name"
-        ),
-        actionButton("browse_output", "Browse server", class = "btn-browse")
+    div(
+      style = "display:none;",
+      textInput(
+        "output_dir",
+        label = NULL,
+        value = "",
+        width = "100%"
+      )
     ),
     div(
       class = "hosted-note",
-      "Hosted output is written inside the server session and returned as a zip download. You cannot select a folder on your computer from Connect or Hugging Face."
+      "Output is generated automatically in the hosted session and returned as a zip download after the build."
     )
   )
 } else {
@@ -770,19 +778,9 @@ output_path_control <- if (hosted_mode) {
 
 r_source_path_control <- if (hosted_mode) {
   tagList(
-    div(class = "path-row",
-        textInput(
-          "r_source_dir",
-          label = NULL,
-          value = "",
-          width = "100%",
-          placeholder = "/usr/local/lib/R"
-        ),
-        actionButton("browse_r_source", "Browse server", class = "btn-browse")
-    ),
     div(
       class = "hosted-note",
-      "Portable R creation is intended for a local Windows publisher machine. Hosted environments cannot browse or package your local R installation."
+      "Portable R creation is intended for the local Windows Publisher UI. Hosted sessions cannot browse or package your local R installation."
     )
   )
 } else {
@@ -828,7 +826,7 @@ ui <- fluidPage(
               info_label(
                 "App folder",
                 if (hosted_mode) {
-                  "Upload a zipped Shiny app so the hosted server can extract it. Browser paths from your computer are not visible to Connect or Hugging Face."
+                  "Browse to a local Shiny app folder and upload it into the hosted session. A zip upload is available as a fallback."
                 } else {
                   "Path to the local Shiny app folder containing app.R, or ui.R and server.R, plus supporting files."
                 }
@@ -956,11 +954,9 @@ ui <- fluidPage(
                       width = "100%",
                       placeholder = if (hosted_mode) "\\\\server\\share\\AppData" else "\\\\server\\share\\AppData  or  C:\\SharedData\\MyApp"
                     ),
-                    actionButton(
-                      "browse_data_dir",
-                      if (hosted_mode) "Browse server" else "Browse",
-                      class = "btn-browse"
-                    )
+                    if (!hosted_mode) {
+                      actionButton("browse_data_dir", "Browse", class = "btn-browse")
+                    }
                 ),
                 div(
                   class = "help-text",
@@ -990,6 +986,10 @@ ui <- fluidPage(
             div(class = "muted-section-note",
                 "Save your current build settings and reload them for future builds."
             ),
+            if (hosted_mode) {
+              div(class = "hosted-note",
+                  "Hosted profiles save reusable options, but not uploaded files or generated server output paths. Upload the app folder again for each hosted session.")
+            },
             div(class = "profile-row",
                 textInput(
                   "profile_name_input",
@@ -1640,7 +1640,7 @@ server <- function(input, output, session) {
 
   # Profiles helpers --------
   profile_fields <- function() {
-    list(
+    fields <- list(
       source_dir             = trimws(input$source_dir %||% ""),
       app_name               = trimws(input$app_name %||% ""),
       output_dir             = trimws(input$output_dir %||% ""),
@@ -1652,6 +1652,13 @@ server <- function(input, output, session) {
       bundle_rmarkdown_support = isTRUE(input$bundle_rmarkdown_support),
       data_dir               = trimws(input$data_dir %||% "")
     )
+
+    if (hosted_mode) {
+      fields$source_dir <- ""
+      fields$output_dir <- ""
+    }
+
+    fields
   }
 
   profile_path <- function(name) {
@@ -1712,9 +1719,9 @@ server <- function(input, output, session) {
 
     tryCatch({
       p <- jsonlite::read_json(path, simplifyVector = TRUE)
-      if (!is.null(p$source_dir))  updateTextInput(session, "source_dir",  value = p$source_dir)
+      if (!hosted_mode && !is.null(p$source_dir))  updateTextInput(session, "source_dir",  value = p$source_dir)
       if (!is.null(p$app_name))    updateTextInput(session, "app_name",    value = p$app_name)
-      if (!is.null(p$output_dir))  updateTextInput(session, "output_dir",  value = p$output_dir)
+      if (!hosted_mode && !is.null(p$output_dir))  updateTextInput(session, "output_dir",  value = p$output_dir)
       if (!is.null(p$extra_packages)) updateTextAreaInput(session, "extra_packages", value = p$extra_packages)
       if (!is.null(p$zip_output))             updateCheckboxInput(session, "zip_output",             value = isTRUE(p$zip_output))
       if (!is.null(p$build_offline_repo))     updateCheckboxInput(session, "build_offline_repo",     value = isTRUE(p$build_offline_repo))
@@ -2094,10 +2101,7 @@ server <- function(input, output, session) {
 
   # Folder browsing --------
   observeEvent(input$browse_source, {
-    if (hosted_mode) {
-      show_server_dir_browser("source_dir", input$source_dir, rv$hosted_source_dir %||% getwd())
-      return()
-    }
+    if (hosted_mode) return()
     dir <- tryCatch(utils::choose.dir(caption = "Select Shiny app folder"), error = function(e) NA)
     if (!is.na(dir) && nzchar(dir)) {
       updateTextInput(session, "source_dir", value = normalizePath(dir, winslash = "/"))
@@ -2108,10 +2112,7 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$browse_output, {
-    if (hosted_mode) {
-      show_server_dir_browser("output_dir", input$output_dir, tempdir())
-      return()
-    }
+    if (hosted_mode) return()
     dir <- tryCatch(utils::choose.dir(caption = "Select output folder"), error = function(e) NA)
     if (!is.na(dir) && nzchar(dir)) {
       updateTextInput(session, "output_dir", value = normalizePath(dir, winslash = "/"))
@@ -2119,10 +2120,7 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$browse_data_dir, {
-    if (hosted_mode) {
-      show_server_dir_browser("data_dir", input$data_dir, tempdir())
-      return()
-    }
+    if (hosted_mode) return()
     dir <- tryCatch(utils::choose.dir(caption = "Select external data directory"), error = function(e) NA)
     if (!is.na(dir) && nzchar(dir)) {
       updateTextInput(session, "data_dir", value = normalizePath(dir, winslash = "/"))
@@ -2514,10 +2512,7 @@ server <- function(input, output, session) {
 
   # Strip R — browse --------
   observeEvent(input$browse_r_source, {
-    if (hosted_mode) {
-      show_server_dir_browser("r_source_dir", input$r_source_dir, Sys.getenv("R_HOME", unset = getwd()))
-      return()
-    }
+    if (hosted_mode) return()
     dir <- tryCatch(utils::choose.dir(caption = "Select full R installation folder"), error = function(e) NA)
     if (!is.na(dir) && nzchar(dir)) {
       updateTextInput(session, "r_source_dir", value = normalizePath(dir, winslash = "/"))
