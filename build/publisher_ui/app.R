@@ -174,6 +174,10 @@ css_app <- tags$head(
         color: #374151;
         margin-bottom: 4px;
       }
+      .form-group label .status-info {
+        margin-left: 6px;
+        vertical-align: text-bottom;
+      }
       .form-group .help-text {
         font-size: 12px;
         color: #9ca3af;
@@ -640,6 +644,13 @@ css_features <- tags$style(HTML("
 
 # UI---------------------------
 
+info_label <- function(label, info) {
+  tags$label(
+    span(label),
+    span(class = "status-info", title = info, `aria-label` = info, "i")
+  )
+}
+
 source_path_control <- if (hosted_mode) {
   tagList(
     fileInput(
@@ -797,7 +808,14 @@ ui <- fluidPage(
       div(class = "card",
           h3("Output"),
           div(class = "form-group",
-              tags$label("Output folder"),
+              info_label(
+                "Output folder",
+                if (hosted_mode) {
+                  "Hosted output is created inside the server session. Use the generated zip download after the build finishes."
+                } else {
+                  "The folder where ShareBridge writes the complete deployment: app files, packages, launchers, metadata, and optional portable R."
+                }
+              ),
               output_path_control
           ),
           div(class = "inline-checks",
