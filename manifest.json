@@ -1131,7 +1131,7 @@
       "checksum": "9bb1b7633eaa71a08de6bd2e8e785434"
     },
     "app.R": {
-      "checksum": "da2b55ffcf9894ae7a7550ca42c6a027"
+      "checksum": "8e37b4399ed181c96c17979dbc822dc6"
     },
     "build/build_packages.R": {
       "checksum": "1be62829a9d6ed91f5472933d50ba59d"
@@ -1140,7 +1140,7 @@
       "checksum": "ac96b34e902ef87ed73c142b68696d61"
     },
     "build/publisher_ui/app.R": {
-      "checksum": "cb9b50f2c83dcdd27b41fc62974ae9cf"
+      "checksum": "e87a54a216dc2ac21f5a68a11a3baa24"
     },
     "build/run_hidden.vbs": {
       "checksum": "7ea25e1c4118e247b00e0480c3a17f3b"
@@ -1149,7 +1149,7 @@
       "checksum": "ab486e97d9e2b03c19c29b8f2d48e8ec"
     },
     "Dockerfile": {
-      "checksum": "dfcd7e0fc1512c824de6ee4595623ff3"
+      "checksum": "e6dc7bb37a6dac2b78aee06802a7ffba"
     },
     "docs/.gitignore": {
       "checksum": "aa93b51709a2fff1a23a004625266eb3"

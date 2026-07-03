@@ -15,6 +15,16 @@
 library(shiny)
 
 
+# Runtime mode --------
+
+is_hosted_mode <- function() {
+  val <- tolower(Sys.getenv("SHAREBRIDGE_HOSTED", unset = ""))
+  val %in% c("1", "true", "yes", "on")
+}
+
+hosted_mode <- is_hosted_mode()
+
+
 # Resolve framework directory -----------
 
 resolve_framework_dir <- function() {
@@ -575,6 +585,17 @@ css_features <- tags$style(HTML("
   .profile-status.ok  { background: #f0fdf4; color: #166534; }
   .profile-status.err { background: #fef2f2; color: #991b1b; }
 
+  .hosted-note {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1e3a8a;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1.45;
+    margin-top: 8px;
+  }
+
   .btn-test-launch {
     padding: 8px 16px;
     font-size: 13px;
@@ -591,6 +612,87 @@ css_features <- tags$style(HTML("
 "))
 
 # UI---------------------------
+
+source_path_control <- if (hosted_mode) {
+  tagList(
+    textInput(
+      "source_dir",
+      label = NULL,
+      value = "",
+      width = "100%",
+      placeholder = "/app/examples/my_shiny_app"
+    ),
+    div(
+      class = "hosted-note",
+      "Hosted sessions cannot browse folders on your computer. Enter a path that exists inside the hosted runtime, or use the local Publisher UI for Windows folder selection."
+    )
+  )
+} else {
+  div(class = "path-row",
+      textInput(
+        "source_dir",
+        label = NULL,
+        value = "",
+        width = "100%",
+        placeholder = "C:\\Users\\you\\projects\\my_shiny_app"
+      ),
+      actionButton("browse_source", "Browse", class = "btn-browse")
+  )
+}
+
+output_path_control <- if (hosted_mode) {
+  tagList(
+    textInput(
+      "output_dir",
+      label = NULL,
+      value = "",
+      width = "100%",
+      placeholder = "/tmp/MyApp_deploy"
+    ),
+    div(
+      class = "hosted-note",
+      "Hosted output is written inside the server container. Use local ShareBridge when you need to build a Windows deployment from files on your machine."
+    )
+  )
+} else {
+  div(class = "path-row",
+      textInput(
+        "output_dir",
+        label = NULL,
+        value = "",
+        width = "100%",
+        placeholder = "C:\\Users\\you\\Documents\\MyApp_deploy"
+      ),
+      actionButton("browse_output", "Browse", class = "btn-browse")
+  )
+}
+
+r_source_path_control <- if (hosted_mode) {
+  tagList(
+    textInput(
+      "r_source_dir",
+      label = NULL,
+      value = "",
+      width = "100%",
+      placeholder = "/usr/local/lib/R"
+    ),
+    div(
+      class = "hosted-note",
+      "Portable R creation is intended for a local Windows publisher machine. Hosted environments cannot browse or package your local R installation."
+    )
+  )
+} else {
+  div(class = "path-row",
+      textInput(
+        "r_source_dir",
+        label = NULL,
+        value = "",
+        width = "100%",
+        placeholder = "C:\\Users\\you\\R-build\\R-4.3.2"
+      ),
+      actionButton("browse_r_source", "Browse", class = "btn-browse")
+  )
+}
 
 ui <- fluidPage(
   css_app,
@@ -615,16 +717,7 @@ ui <- fluidPage(
           h3("Source app"),
           div(class = "form-group",
               tags$label("App folder"),
-              div(class = "path-row",
-                  textInput(
-                    "source_dir",
-                    label = NULL,
-                    value = "",
-                    width = "100%",
-                    placeholder = "C:\\Users\\you\\projects\\my_shiny_app"
-                  ),
-                  actionButton("browse_source", "Browse", class = "btn-browse")
-              ),
+              source_path_control,
               div(
                 class = "help-text",
                 "Folder containing app.R or ui.R + server.R, plus any supporting files such as www, modules, R, data, or config"
@@ -668,16 +761,7 @@ ui <- fluidPage(
           h3("Output"),
           div(class = "form-group",
               tags$label("Output folder"),
-              div(class = "path-row",
-                  textInput(
-                    "output_dir",
-                    label = NULL,
-                    value = "",
-                    width = "100%",
-                    placeholder = "C:\\Users\\you\\Documents\\MyApp_deploy"
-                  ),
-                  actionButton("browse_output", "Browse", class = "btn-browse")
-              )
+              output_path_control
           ),
           div(class = "inline-checks",
               checkboxInput("zip_output", "Create zip file", value = TRUE),
@@ -786,16 +870,7 @@ ui <- fluidPage(
             ),
             div(class = "form-group", style = "margin-top: 14px;",
                 tags$label("Full R installation folder"),
-                div(class = "path-row",
-                    textInput(
-                      "r_source_dir",
-                      label = NULL,
-                      value = "",
-                      width = "100%",
-                      placeholder = "C:\\Users\\you\\R-build\\R-4.3.2"
-                    ),
-                    actionButton("browse_r_source", "Browse", class = "btn-browse")
-                ),
+                r_source_path_control,
                 div(
                   class = "help-text",
                   "Select a full R installation to create R-portable for Shiny ShareBridge"
@@ -1669,6 +1744,7 @@ server <- function(input, output, session) {
 
   # Folder browsing --------
   observeEvent(input$browse_source, {
+    if (hosted_mode) return()
     dir <- tryCatch(utils::choose.dir(caption = "Select Shiny app folder"), error = function(e) NA)
     if (!is.na(dir) && nzchar(dir)) {
       updateTextInput(session, "source_dir", value = normalizePath(dir, winslash = "/"))
@@ -1679,6 +1755,7 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$browse_output, {
+    if (hosted_mode) return()
     dir <- tryCatch(utils::choose.dir(caption = "Select output folder"), error = function(e) NA)
     if (!is.na(dir) && nzchar(dir)) {
       updateTextInput(session, "output_dir", value = normalizePath(dir, winslash = "/"))
@@ -1960,6 +2037,7 @@ server <- function(input, output, session) {
 
   # Strip R — browse --------
   observeEvent(input$browse_r_source, {
+    if (hosted_mode) return()
     dir <- tryCatch(utils::choose.dir(caption = "Select full R installation folder"), error = function(e) NA)
     if (!is.na(dir) && nzchar(dir)) {
       updateTextInput(session, "r_source_dir", value = normalizePath(dir, winslash = "/"))
