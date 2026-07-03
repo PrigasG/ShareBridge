@@ -21,6 +21,8 @@ website:
         menu:
           - text: "Publisher Guide"
             href: publisher-guide.qmd
+          - text: "Cloud Publishing"
+            href: cloud-publishing.qmd
           - text: "User Guide"
             href: user-guide.qmd
       - text: "Reference"

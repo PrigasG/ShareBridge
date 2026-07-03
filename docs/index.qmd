@@ -141,3 +141,5 @@ Shiny ShareBridge is not a CRAN package — it is a framework folder. To get sta
 3. Point it at your Shiny app and click **Build deployment**
 
 See the [Getting Started](getting-started.html) guide for the full walkthrough.
+
+For hosted deployment, see [Cloud Publishing](cloud-publishing.html) for the Posit Connect Cloud and Hugging Face Spaces workflows.

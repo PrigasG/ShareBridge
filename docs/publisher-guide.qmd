@@ -92,6 +92,10 @@ The output folder is where the complete deployable folder is written. It is auto
 
 When enabled, Shiny ShareBridge zips the output folder after building. The zip file appears at `<output_dir>.zip` and is available for download directly from the Publisher UI.
 
+::: callout-important
+If users should run the zip without installing R, create portable R first and confirm the zip contains the generated `R/` folder. A zip of only the Shiny app files is not a complete ShareBridge deployment.
+:::
+
 ### Build offline repo
 
 When enabled, Shiny ShareBridge downloads a copy of all bundled packages into a `repo/` folder inside the deployment. At runtime, `run.R` installs from this local repo first, falling back to CRAN only if the local repo is missing.

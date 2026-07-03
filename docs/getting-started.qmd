@@ -159,10 +159,27 @@ Then click **Test launch** to open the app exactly as an end user would.
 
 On first launch, users are offered a desktop shortcut automatically.
 
+::: callout-important
+If you distribute a zip instead of a synced folder, zip the complete Publisher output. Users who do not have R installed need the bundled `R/` folder in that zip.
+:::
+
+## Publishing to Posit Connect Cloud and Hugging Face
+
+For hosted publishing, publish the Shiny app source rather than the ShareBridge deployment folder. Posit Connect Cloud expects a public GitHub repository with a primary file such as `app.R` and a `manifest.json` created by `rsconnect::writeManifest()`.
+
+For Hugging Face Spaces, use the Space repository:
+
+```bash
+git clone https://huggingface.co/spaces/Prigas89/Shiny_ShareBridge
+```
+
+See [Cloud Publishing](cloud-publishing.html) for the ShareBridge-specific hosted publishing workflows.
+
 ---
 
 ## What's next?
 
 - [Publisher Guide](publisher-guide.html) — detailed reference for all publisher options
+- [Cloud Publishing](cloud-publishing.html) — publish the same app source to Posit Connect Cloud or Hugging Face Spaces
 - [User Guide](user-guide.html) — what to tell your end users
 - [Reference](reference.html) — all config files, CLI arguments, and env vars
