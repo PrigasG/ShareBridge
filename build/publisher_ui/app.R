@@ -645,6 +645,11 @@ css_features <- tags$style(HTML("
     margin-bottom: 8px;
   }
 
+  .directory-upload input[type='file'] {
+    width: 100%;
+    font-size: 13px;
+  }
+
   .btn-test-launch {
     padding: 8px 16px;
     font-size: 13px;
@@ -675,15 +680,35 @@ resource_link <- function(label, href) {
 
 source_path_control <- if (hosted_mode) {
   tagList(
+    tags$div(
+      class = "form-group directory-upload",
+      tags$label("Browse local app folder"),
+      tags$input(
+        id = "source_folder_upload",
+        type = "file",
+        multiple = NA,
+        webkitdirectory = NA,
+        directory = NA
+      )
+    ),
+    tags$script(HTML("
+      $(document).on('change', '#source_folder_upload', function(e) {
+        var files = Array.prototype.slice.call(e.target.files || []);
+        var paths = files.map(function(file) {
+          return file.webkitRelativePath || file.name;
+        });
+        Shiny.setInputValue('source_folder_upload_paths', paths, {priority: 'event'});
+      });
+    ")),
     fileInput(
       "source_zip",
-      "Upload Shiny app zip",
+      "Or upload Shiny app zip",
       accept = ".zip",
       width = "100%"
     ),
     div(
       class = "upload-note",
-      "Zip the app folder that contains app.R, or ui.R and server.R. ShareBridge will extract it into the hosted session."
+      "Browse local app folder opens your computer's folder picker and uploads the selected folder. Zip upload is available as a fallback."
     ),
     div(class = "path-row",
         textInput(
@@ -697,7 +722,7 @@ source_path_control <- if (hosted_mode) {
     ),
     div(
       class = "hosted-note",
-      "Hosted sessions cannot browse folders on your computer. Upload a zipped Shiny app, or use the local Publisher UI for Windows folder selection."
+      "Hosted sessions can open your browser's local folder picker and upload the selected folder, but the app cannot read a local path without uploading the files."
     )
   )
 } else {
@@ -1496,6 +1521,38 @@ server <- function(input, output, session) {
     root
   }
 
+  safe_relative_upload_path <- function(path, fallback_name) {
+    path <- gsub("\\\\", "/", path %||% "")
+    path <- sub("^[A-Za-z]:", "", path)
+    path <- gsub("^/+", "", path)
+    parts <- unlist(strsplit(path, "/", fixed = TRUE), use.names = FALSE)
+    parts <- parts[nzchar(parts) & !parts %in% c(".", "..")]
+    parts <- gsub("[<>:\"|?*]", "_", parts)
+    if (!length(parts)) {
+      parts <- basename(fallback_name %||% "uploaded_file")
+    }
+    file.path(parts)
+  }
+
+  populate_uploaded_folder <- function(upload, relative_paths, dest_root) {
+    if (is.null(upload) || !nrow(upload)) stop("No files were uploaded.")
+    if (length(relative_paths) != nrow(upload)) {
+      relative_paths <- upload$name
+    }
+
+    for (i in seq_len(nrow(upload))) {
+      rel <- safe_relative_upload_path(relative_paths[[i]], upload$name[[i]])
+      dest <- file.path(dest_root, rel)
+      dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
+      ok <- file.copy(upload$datapath[[i]], dest, overwrite = TRUE)
+      if (!isTRUE(ok)) {
+        stop("Could not copy uploaded file: ", upload$name[[i]])
+      }
+    }
+
+    invisible(dest_root)
+  }
+
   normalize_existing_dir <- function(path, fallback = getwd()) {
     path <- trimws(path %||% "")
     if (nzchar(path) && dir.exists(path)) {
@@ -2070,6 +2127,52 @@ server <- function(input, output, session) {
     if (!is.na(dir) && nzchar(dir)) {
       updateTextInput(session, "data_dir", value = normalizePath(dir, winslash = "/"))
     }
+  })
+
+  observeEvent(input$source_folder_upload, {
+    if (!hosted_mode) return()
+    upload <- input$source_folder_upload
+    if (is.null(upload) || !nrow(upload)) return()
+
+    if (!is.null(rv$hosted_source_dir) && dir.exists(rv$hosted_source_dir)) {
+      try(unlink(rv$hosted_source_dir, recursive = TRUE, force = TRUE), silent = TRUE)
+    }
+
+    extract_root <- tempfile("sharebridge_folder_upload_")
+    dir.create(extract_root, recursive = TRUE, showWarnings = FALSE)
+
+    tryCatch({
+      relative_paths <- input$source_folder_upload_paths %||% upload$name
+      populate_uploaded_folder(upload, relative_paths, extract_root)
+      app_dir <- find_extracted_app_dir(extract_root)
+      app_dir <- normalizePath(app_dir, winslash = "/", mustWork = TRUE)
+
+      rv$hosted_source_dir <- extract_root
+      rv$hosted_source_upload_msg <- paste("Uploaded folder extracted to", app_dir)
+      updateTextInput(session, "source_dir", value = app_dir)
+
+      top_folder <- sub("/.*$", "", gsub("\\\\", "/", relative_paths[[1]] %||% upload$name[[1]]))
+      app_label <- tools::file_path_sans_ext(basename(top_folder))
+      if (!nzchar(app_label)) app_label <- "uploaded_app"
+
+      if (!nzchar(input$app_name %||% "")) {
+        updateTextInput(session, "app_name", value = app_label)
+      }
+
+      if (!nzchar(input$output_dir %||% "")) {
+        safe_name <- gsub("[^A-Za-z0-9_]+", "_", app_label)
+        safe_name <- gsub("_+", "_", safe_name)
+        safe_name <- gsub("^_|_$", "", safe_name)
+        if (!nzchar(safe_name)) safe_name <- "sharebridge_app"
+        updateTextInput(session, "output_dir",
+                        value = normalizePath(file.path(tempdir(), paste0(safe_name, "_deploy")),
+                                              winslash = "/", mustWork = FALSE))
+      }
+    }, error = function(e) {
+      rv$hosted_source_dir <- NULL
+      rv$hosted_source_upload_msg <- paste("Folder upload failed:", conditionMessage(e))
+      updateTextInput(session, "source_dir", value = "")
+    })
   })
 
   observeEvent(input$source_zip, {
