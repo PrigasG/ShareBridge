@@ -133,6 +133,26 @@ css_app <- tags$head(
       .dot-ok { background: #22c55e; }
       .dot-warn { background: #f59e0b; }
       .dot-err { background: #ef4444; }
+      .status-info {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        border: 1px solid #cbd5e1;
+        color: #64748b;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1;
+        cursor: help;
+        user-select: none;
+      }
+      .status-info:hover {
+        border-color: #94a3b8;
+        color: #334155;
+        background: #f8fafc;
+      }
       .card {
         background: #ffffff;
         border: 1px solid #e5e7eb;
@@ -1699,18 +1719,25 @@ server <- function(input, output, session) {
     )
     has_build <- has_framework && file.exists(file.path(fdir, "build", "build_packages.R"))
 
+    info_icon <- function(text) {
+      span(class = "status-info", title = text, `aria-label` = text, "i")
+    }
+
     div(class = "status-bar",
         div(class = "status-item",
             span(class = paste("dot", if (has_framework) "dot-ok" else "dot-err")),
-            paste("Framework:", if (has_framework) basename(fdir) else "not found")
+            paste("Framework:", if (has_framework) basename(fdir) else "not found"),
+            info_icon("The ShareBridge framework folder contains the publisher UI, launch scripts, and build tools used to package apps.")
         ),
         div(class = "status-item",
             span(class = paste("dot", if (has_r) "dot-ok" else "dot-warn")),
-            paste("Portable R:", if (has_r) "found" else "missing")
+            paste("Portable R:", if (has_r) "found" else "missing"),
+            info_icon("Portable R is the bundled R runtime copied into deployments so end users do not need R installed locally.")
         ),
         div(class = "status-item",
             span(class = paste("dot", if (has_build) "dot-ok" else "dot-err")),
-            paste("Build script:", if (has_build) "found" else "missing")
+            paste("Build script:", if (has_build) "found" else "missing"),
+            info_icon("The build script copies the app, detects packages, writes metadata, bundles dependencies, and creates the deployment output.")
         )
     )
   })
