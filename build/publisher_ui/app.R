@@ -764,7 +764,14 @@ ui <- fluidPage(
       div(class = "card",
           h3("Source app"),
           div(class = "form-group",
-              tags$label("App folder"),
+              info_label(
+                "App folder",
+                if (hosted_mode) {
+                  "Upload a zipped Shiny app so the hosted server can extract it. Browser paths from your computer are not visible to Connect or Hugging Face."
+                } else {
+                  "Path to the local Shiny app folder containing app.R, or ui.R and server.R, plus supporting files."
+                }
+              ),
               source_path_control,
               div(
                 class = "help-text",
@@ -863,7 +870,14 @@ ui <- fluidPage(
             ),
 
             div(class = "form-group", style = "margin-top: 14px;",
-                tags$label("External data directory (DATA_DIR) — optional"),
+                info_label(
+                  "External data directory (DATA_DIR) - optional",
+                  if (hosted_mode) {
+                    "This value is written into the deployment for the eventual Windows runtime. It is not a browser upload and must be a path the deployed app can use later."
+                  } else {
+                    "Optional path written to app_meta.cfg and exposed as SHAREBRIDGE_DATA_DIR so app data can live outside the synced deployment folder."
+                  }
+                ),
                 textInput(
                   "data_dir",
                   label = NULL,
@@ -924,7 +938,14 @@ ui <- fluidPage(
                 "Create or manage the portable R framework used for deployment."
             ),
             div(class = "form-group", style = "margin-top: 14px;",
-                tags$label("Full R installation folder"),
+                info_label(
+                  "Full R installation folder",
+                  if (hosted_mode) {
+                    "Portable R creation needs access to a full Windows R installation on the publisher machine. Hosted sessions cannot browse or package your local R install."
+                  } else {
+                    "Path to a full R installation that ShareBridge strips into R-portable-master for bundling with deployments."
+                  }
+                ),
                 r_source_path_control,
                 div(
                   class = "help-text",
@@ -1908,7 +1929,7 @@ server <- function(input, output, session) {
       safe_name <- gsub("[^A-Za-z0-9_]+", "_", input$app_name)
       safe_name <- gsub("_+", "_", safe_name)
       safe_name <- gsub("^_|_$", "", safe_name)
-      parent <- dirname(rv$framework_dir %||% ".")
+      parent <- if (hosted_mode) tempdir() else dirname(rv$framework_dir %||% ".")
       default_out <- file.path(parent, paste0(safe_name, "_deploy"))
       updateTextInput(session, "output_dir",
                       value = normalizePath(default_out, winslash = "/", mustWork = FALSE))
