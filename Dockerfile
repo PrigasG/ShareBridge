@@ -1,11 +1,11 @@
-FROM rocker/r-ver:4.4.3
+FROM rocker/shiny:4.4.3
 
 ENV PORT=7860
 ENV SHAREBRIDGE_FRAMEWORK_DIR=/app
 
 WORKDIR /app
 
-RUN R -e "install.packages(c('shiny', 'processx', 'jsonlite', 'renv'), repos = 'https://cloud.r-project.org')"
+RUN install2.r --error processx jsonlite renv
 
 COPY . /app
 
