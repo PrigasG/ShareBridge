@@ -21,6 +21,9 @@ description: "Version history and release notes for Shiny ShareBridge"
 - **Recipes and examples** - common build recipes plus simple, data, and report example apps for quick validation.
 - **Dependency review and preflight checks** - flags report/data/UI dependency hints, local-only path risks, Portable R status, Pandoc status, and visible app files before building.
 - **Diagnostics download** - creates a zip with summary notes, current logs, selected saved log, package list, preflight results, and health-check JSON when available.
+- **Readiness score** - combines preflight checks and dependency advisories into ShareBridge-ready, Needs review, or Blocked status.
+- **Review artifacts** - downloads Markdown readiness reports, IT handoff checklists, and end-user instructions for team review and distribution.
+- **Expanded portability scanner** - flags hard-coded paths, `setwd()`, interactive file pickers, references outside the app folder, system dependency risks, and possible secret handling issues.
 
 **Runtime (`run.R`)**
 

@@ -1140,7 +1140,7 @@
       "checksum": "ac96b34e902ef87ed73c142b68696d61"
     },
     "build/publisher_ui/app.R": {
-      "checksum": "d36a6b215a03ab4d0a9c429684b7a51f"
+      "checksum": "dd7bd1dc4c250af63e2a0b72b51d3ac3"
     },
     "build/run_hidden.vbs": {
       "checksum": "7ea25e1c4118e247b00e0480c3a17f3b"
@@ -1158,13 +1158,13 @@
       "checksum": "086bb3e59d8ac6fbcba8526a54b141fb"
     },
     "docs/changelog.qmd": {
-      "checksum": "4532b19d0fdc3624ee9bae5ece79d7bd"
+      "checksum": "daaf665e78f1960a03ce60087cc320e4"
     },
     "docs/cloud-publishing.qmd": {
-      "checksum": "f571d8609bfcafd303d705c10c7472dd"
+      "checksum": "f3bc35e73849ff692592daac9a11500b"
     },
     "docs/getting-started.qmd": {
-      "checksum": "c3b5940d453fe52505dec94500b1b314"
+      "checksum": "c75951852bd76e9dcb51fd7d3b33e68f"
     },
     "docs/images/favicon.svg": {
       "checksum": "a59416fafd925b28728f2413a32d9964"
@@ -1173,10 +1173,10 @@
       "checksum": "1108f61289bceb685fa68a17db309bf2"
     },
     "docs/index.qmd": {
-      "checksum": "1bf7d6c6164b69bc88fa74980a8d0b6f"
+      "checksum": "4a91d4f1a48278f01cff9f55ce3e3c51"
     },
     "docs/publisher-guide.qmd": {
-      "checksum": "568f23e2ddafb7ed64fb5579fb49d178"
+      "checksum": "54d828e9bf3c825d92e23245a1f34e6b"
     },
     "docs/reference.qmd": {
       "checksum": "f9a925d68f18c851bb7bd2216230eb7a"
@@ -1197,7 +1197,7 @@
       "checksum": "612f87ac7d1b94bfdff13a39a770301a"
     },
     "README.md": {
-      "checksum": "b82bfa871cdc32cb60bd8f229f58915b"
+      "checksum": "45222c77a2a0ddadf5fe5aba7c75867d"
     },
     "run.bat": {
       "checksum": "7eece2163ed49d2787cf1504bb5d89cd"

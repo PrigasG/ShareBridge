@@ -93,6 +93,8 @@ The Publisher UI also shows a dependency review below the detected package list.
 - Report packages (`rmarkdown`, `knitr`, `quarto`, `pagedown`, `officer`, `flextable`) that may need Pandoc support
 - Data access packages (`DBI`, `odbc`, `RSQLite`, `pool`, `arrow`, `duckdb`) that may need credentials or runtime data paths
 - Interactive UI packages (`DT`, `plotly`, `leaflet`, `htmlwidgets`, `bslib`) that should be bundled like any other dependency
+- System dependency risks (`sf`, `terra`, `rJava`, `magick`, `curl`, `openssl`, `xml2`, `chromote`, `webshot2`, `V8`, `units`, `s2`) that may need external libraries, Java, browser tooling, or OS support
+- Authentication or secret-handling packages (`httr`, `httr2`, `gargle`, `AzureAuth`, `keyring`, `blastula`) that should be reviewed for approved runtime credential handling
 
 ---
 
@@ -128,6 +130,18 @@ In hosted mode, the output folder is generated automatically inside the hosted r
 
 ## Recipes, examples, and preflight
 
+### Workflow setup
+
+The **I want to** selector applies a starting setup for common goals:
+
+| Goal | What it prepares |
+|---|---|
+| Inspect an app | Hosted-friendly inspection settings |
+| Build for SharePoint users | Zip output and file-share-oriented build settings |
+| Build for users without R | Zip output plus offline/review settings, with Portable R highlighted |
+| Build a report app | Pandoc and rmarkdown helper support |
+| Prepare an IT handoff | Report/checklist-oriented settings |
+
 ### Build recipes
 
 The **Recipes and examples** panel applies common option sets without changing the selected source folder:
@@ -154,7 +168,26 @@ The built-in examples create temporary Shiny apps for quick testing:
 
 The **Preflight** panel checks whether the source is valid, the app name and output are set, build R is available, packages are detected, Portable R is present, app files are visible, and obvious local path risks are present in `.R`, `.Rmd`, or `.qmd` files.
 
+The portability scanner flags hard-coded Windows or network paths, `setwd()`, interactive file choosers, references outside the app folder, environment-based credential references, and possible hard-coded secrets.
+
 Warnings do not always block builds, but they should be reviewed before distributing the output to users.
+
+### Readiness score and reports
+
+The top readiness panel combines preflight checks and dependency advisories into a score:
+
+| Status | Meaning |
+|---|---|
+| ShareBridge-ready | Core checks are passing |
+| Needs review | Build may proceed, but warnings should be reviewed |
+| Blocked | A required input or build prerequisite is missing |
+
+The **Preflight** panel can download:
+
+- **Readiness report** - Markdown summary of score, packages, preflight checks, and next steps
+- **IT checklist** - Markdown handoff notes covering runtime, local ports, launchers, data paths, packages, and warning items
+
+After a successful build, the success bar also offers **User instructions**, a plain-text handoff file for end users.
 
 ---
 
@@ -281,7 +314,7 @@ From the **Publisher logs** panel you can:
 - Browse all saved log files
 - Preview the last 250 lines of any log
 - Delete individual or all logs
-- Download a diagnostics zip with summary notes, current logs, selected saved log, package list, preflight results, and health-check JSON when available
+- Download a diagnostics zip with summary notes, readiness report, user instructions, IT checklist, current logs, selected saved log, package list, preflight results, and health-check JSON when available
 
 Logs contain the full build subprocess output — useful for diagnosing failed installs, missing packages, or robocopy errors.
 

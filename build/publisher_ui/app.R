@@ -697,9 +697,50 @@ css_features <- tags$style(HTML("
     align-items: end;
   }
 
+  .readiness-panel {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 16px;
+    align-items: center;
+    padding: 14px 16px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    margin-bottom: 16px;
+  }
+
+  .readiness-score {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    font-weight: 700;
+    background: #ffffff;
+    border: 6px solid #cbd5e1;
+    color: #334155;
+  }
+  .readiness-score.ok { border-color: #22c55e; color: #166534; }
+  .readiness-score.warn { border-color: #f59e0b; color: #92400e; }
+  .readiness-score.fail { border-color: #ef4444; color: #991b1b; }
+  .readiness-score span:first-child { font-size: 28px; line-height: 1; }
+  .readiness-score span:last-child { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .readiness-title { font-weight: 700; color: #111827; margin-bottom: 4px; }
+  .readiness-copy { color: #4b5563; font-size: 13px; line-height: 1.45; }
+
+  .download-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
   @media (max-width: 640px) {
     .recipe-row { grid-template-columns: 1fr; }
     .summary-grid { grid-template-columns: 1fr; }
+    .readiness-panel { grid-template-columns: 1fr; }
   }
 
   .btn-test-launch {
@@ -753,6 +794,14 @@ recipe_choices <- c(
   "Report app with Pandoc" = "report",
   "Hosted validation only" = "validate",
   "Upload inspection only" = "inspect"
+)
+
+workflow_choices <- c(
+  "Inspect an app" = "inspect",
+  "Build for SharePoint users" = "sharepoint",
+  "Build for users without R" = "portable",
+  "Build a report app" = "report",
+  "Prepare an IT handoff" = "handoff"
 )
 
 source_path_control <- if (hosted_mode) {
@@ -891,11 +940,16 @@ ui <- fluidPage(
   uiOutput("build_overlay"),
   uiOutput("status_bar"),
   uiOutput("hosted_inspector_ui"),
+  uiOutput("readiness_score_ui"),
 
   div(class = "section-stack",
 
       div(class = "card",
           h3("Recipes and examples"),
+          div(class = "recipe-row",
+              selectInput("workflow_goal", "I want to", choices = workflow_choices, width = "100%"),
+              actionButton("apply_workflow_goal", "Set up", class = "btn-browse")
+          ),
           div(class = "recipe-row",
               selectInput("recipe_select", "Build recipe", choices = recipe_choices, width = "100%"),
               actionButton("apply_recipe", "Apply", class = "btn-browse")
@@ -968,7 +1022,9 @@ ui <- fluidPage(
           h3("Preflight"),
           uiOutput("preflight_ui"),
           div(class = "toolbar-row",
-              actionButton("run_preflight", "Refresh checks", class = "btn-log")
+              actionButton("run_preflight", "Refresh checks", class = "btn-log"),
+              downloadButton("download_readiness_report", "Download report", class = "btn-log"),
+              downloadButton("download_it_checklist", "IT checklist", class = "btn-log")
           )
       ),
 
@@ -1492,39 +1548,86 @@ server <- function(input, output, session) {
     if (any(grepl("choose\\.dir|file\\.choose|choose\\.files", lines))) {
       risks <- c(risks, "Interactive local file chooser found")
     }
+    if (any(grepl("source\\s*\\(\\s*['\"]\\.\\./|read(RDS|\\.csv|Lines)?\\s*\\(\\s*['\"]\\.\\./|here::here\\s*\\(\\s*['\"]\\.\\.", lines))) {
+      risks <- c(risks, "References outside the app folder found")
+    }
+    if (any(grepl("Sys\\.getenv\\s*\\(\\s*['\"](PASSWORD|TOKEN|KEY|SECRET|DSN|UID|PWD)", lines, ignore.case = TRUE))) {
+      risks <- c(risks, "Environment-based secret or credential references found")
+    }
+    if (any(grepl("(password|token|secret|api[_-]?key)\\s*<-\\s*['\"][^'\"]+", lines, ignore.case = TRUE))) {
+      risks <- c(risks, "Possible hard-coded secret found")
+    }
     unique(risks)
   }
 
-  dependency_review <- reactive({
+  package_advisories <- reactive({
     pkgs <- all_requested_packages()
+    add <- function(text, state = "info", detail = NULL) {
+      list(text = text, state = state, detail = detail)
+    }
     if (!length(pkgs)) {
-      return(list(items = list(mini_item("Select or upload an app to scan package dependencies.", "info"))))
+      return(list(add("Select or upload an app to scan package dependencies.", "info")))
     }
 
-    report_pkgs <- intersect(pkgs, c("rmarkdown", "knitr", "quarto", "pagedown", "officer", "flextable"))
-    data_pkgs <- intersect(pkgs, c("DBI", "odbc", "RSQLite", "pool", "arrow", "duckdb"))
-    web_pkgs <- intersect(pkgs, c("bslib", "htmltools", "htmlwidgets", "DT", "plotly", "leaflet"))
+    advisories <- list(add(paste(length(pkgs), "package(s) requested"), "ok", paste(pkgs, collapse = ", ")))
 
-    items <- list(
-      mini_item(paste(length(pkgs), "package(s) requested"), "ok", paste(pkgs, collapse = ", "))
+    groups <- list(
+      report = intersect(pkgs, c("rmarkdown", "knitr", "quarto", "pagedown", "officer", "flextable")),
+      data = intersect(pkgs, c("DBI", "odbc", "RSQLite", "pool", "arrow", "duckdb", "bigrquery", "googlesheets4")),
+      ui = intersect(pkgs, c("bslib", "htmltools", "htmlwidgets", "DT", "plotly", "leaflet", "shinyWidgets")),
+      system = intersect(pkgs, c("sf", "terra", "rJava", "magick", "curl", "openssl", "xml2", "chromote", "webshot2", "V8", "units", "s2")),
+      auth = intersect(pkgs, c("httr", "httr2", "gargle", "AzureAuth", "keyring", "blastula"))
     )
-    if (length(report_pkgs)) {
-      items <- c(items, list(mini_item("Report/document packages detected", "warn",
-                                       "Turn on Pandoc when this app renders R Markdown, Quarto, Word, PDF, or HTML reports.")))
+
+    if (length(groups$report)) {
+      advisories <- c(advisories, list(add(
+        "Report/document packages detected",
+        "warn",
+        paste("Consider Pandoc support for:", paste(groups$report, collapse = ", "))
+      )))
     }
-    if (length(data_pkgs)) {
-      items <- c(items, list(mini_item("Data access packages detected", "info",
-                                       "Confirm credentials and external data paths are supplied at runtime, not only on your computer.")))
+    if (length(groups$data)) {
+      advisories <- c(advisories, list(add(
+        "Data access packages detected",
+        "info",
+        paste("Confirm runtime credentials, drivers, and data paths for:", paste(groups$data, collapse = ", "))
+      )))
     }
-    if (length(web_pkgs)) {
-      items <- c(items, list(mini_item("Interactive UI packages detected", "ok",
-                                       "These are common Shiny dependencies and will be included in the package bundle.")))
+    if (length(groups$ui)) {
+      advisories <- c(advisories, list(add(
+        "Interactive UI packages detected",
+        "ok",
+        paste("Common Shiny dependencies:", paste(groups$ui, collapse = ", "))
+      )))
+    }
+    if (length(groups$system)) {
+      advisories <- c(advisories, list(add(
+        "System dependency risk",
+        "warn",
+        paste("These packages may need external libraries, Java, browser tooling, or OS support:", paste(groups$system, collapse = ", "))
+      )))
+    }
+    if (length(groups$auth)) {
+      advisories <- c(advisories, list(add(
+        "Authentication or secret handling likely",
+        "warn",
+        paste("Review how credentials are supplied at runtime for:", paste(groups$auth, collapse = ", "))
+      )))
     }
     if (!"shiny" %in% pkgs) {
-      items <- c(items, list(mini_item("shiny was not detected", "warn",
-                                       "ShareBridge normally adds shiny automatically, but review this if the app has unusual startup code.")))
+      advisories <- c(advisories, list(add(
+        "shiny was not detected",
+        "warn",
+        "ShareBridge normally adds shiny automatically, but review unusual startup code."
+      )))
     }
-    list(items = items)
+
+    advisories
+  })
+
+  dependency_review <- reactive({
+    advisories <- package_advisories()
+    list(items = lapply(advisories, function(x) mini_item(x$text, x$state, x$detail)))
   })
 
   preflight_checks <- reactive({
@@ -1570,6 +1673,141 @@ server <- function(input, output, session) {
     }
 
     checks
+  })
+
+  readiness_summary <- reactive({
+    checks <- preflight_checks()
+    advisories <- package_advisories()
+    fail_count <- sum(vapply(checks, function(x) identical(x$state, "fail"), logical(1)))
+    warn_count <- sum(vapply(checks, function(x) identical(x$state, "warn"), logical(1))) +
+      sum(vapply(advisories, function(x) identical(x$state, "warn"), logical(1)))
+
+    score <- 100L - fail_count * 30L - warn_count * 8L
+    score <- max(0L, min(100L, score))
+
+    state <- if (fail_count > 0L) "fail" else if (warn_count > 0L) "warn" else "ok"
+    label <- switch(state,
+      ok = "ShareBridge-ready",
+      warn = "Needs review",
+      fail = "Blocked",
+      "Needs review"
+    )
+    detail <- switch(state,
+      ok = "Core checks are passing. This app is ready for a build or handoff review.",
+      warn = "The app can likely proceed, but review warnings before presenting or distributing it.",
+      fail = "Resolve blocking items before building or presenting the deployment.",
+      ""
+    )
+
+    list(score = score, state = state, label = label, detail = detail,
+         fail_count = fail_count, warn_count = warn_count)
+  })
+
+  report_lines <- reactive({
+    summary <- readiness_summary()
+    checks <- preflight_checks()
+    advisories <- package_advisories()
+    app_name <- trimws(input$app_name %||% "")
+    if (!nzchar(app_name)) app_name <- "(not set)"
+
+    check_lines <- unlist(lapply(checks, function(chk) {
+      paste0("- [", toupper(chk$state), "] ", chk$text,
+             if (!is.null(chk$detail) && nzchar(chk$detail)) paste0(" - ", chk$detail) else "")
+    }), use.names = FALSE)
+    advisory_lines <- unlist(lapply(advisories, function(item) {
+      paste0("- [", toupper(item$state), "] ", item$text,
+             if (!is.null(item$detail) && nzchar(item$detail)) paste0(" - ", item$detail) else "")
+    }), use.names = FALSE)
+
+    c(
+      "# ShareBridge Readiness Report",
+      "",
+      paste("Generated:", format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z")),
+      paste("App:", app_name),
+      paste("Readiness:", paste0(summary$score, "% - ", summary$label)),
+      paste("Hosted mode:", hosted_mode),
+      paste("Source:", input$source_dir %||% ""),
+      paste("Output:", input$output_dir %||% ""),
+      paste("Zip output:", isTRUE(input$zip_output) || hosted_mode),
+      paste("Offline repo:", isTRUE(input$build_offline_repo)),
+      paste("Portable R available:", portable_r_exists()),
+      paste("Pandoc option:", isTRUE(input$include_pandoc)),
+      "",
+      "## Dependency Review",
+      if (length(advisory_lines)) advisory_lines else "- No dependency advisories available.",
+      "",
+      "## Preflight",
+      if (length(check_lines)) check_lines else "- No preflight checks available.",
+      "",
+      "## Recommended Next Steps",
+      if (identical(summary$state, "fail")) {
+        c("- Fix blocked checks before building.", "- Upload or select a valid app folder and confirm app name/output.")
+      } else if (identical(summary$state, "warn")) {
+        c("- Review warnings with the app owner or IT.", "- Download diagnostics if this is being handed off for review.")
+      } else {
+        c("- Build the deployment.", "- Test launch locally before copying to SharePoint or sending the zip.")
+      }
+    )
+  })
+
+  user_instruction_lines <- reactive({
+    app_name <- trimws(input$app_name %||% "")
+    if (!nzchar(app_name)) app_name <- "this ShareBridge app"
+    c(
+      paste("User instructions for", app_name),
+      "",
+      "1. Sync or extract the complete ShareBridge deployment folder.",
+      "2. Wait for OneDrive or SharePoint to finish syncing all files.",
+      "3. Open LaunchApp.hta.",
+      "4. If LaunchApp.hta is blocked, try run.bat or contact the publisher.",
+      "5. Do not move individual files out of the deployment folder.",
+      "",
+      if (portable_r_exists()) {
+        "R is bundled with this deployment; users do not need to install R."
+      } else {
+        "Portable R was not detected in the framework; users may need compatible R installed unless the deployment includes R from another source."
+      },
+      if (nzchar(trimws(input$data_dir %||% ""))) {
+        paste("This app expects external data at:", trimws(input$data_dir %||% ""))
+      } else {
+        "No external DATA_DIR path was configured."
+      }
+    )
+  })
+
+  it_checklist_lines <- reactive({
+    pkgs <- all_requested_packages()
+    risky <- package_advisories()
+    warn_items <- risky[vapply(risky, function(x) identical(x$state, "warn"), logical(1))]
+    c(
+      "# ShareBridge IT Handoff Checklist",
+      "",
+      paste("Generated:", format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z")),
+      paste("App:", trimws(input$app_name %||% "")),
+      "",
+      "## Runtime",
+      "- Windows desktop runtime",
+      "- Local loopback browser URL only",
+      "- Launcher files: LaunchApp.hta and run.bat",
+      paste("- Portable R available in framework:", portable_r_exists()),
+      paste("- Offline repo requested:", isTRUE(input$build_offline_repo)),
+      paste("- Pandoc requested:", isTRUE(input$include_pandoc)),
+      "",
+      "## Data and Credentials",
+      paste("- DATA_DIR:", if (nzchar(trimws(input$data_dir %||% ""))) trimws(input$data_dir %||% "") else "(none configured)"),
+      "- Confirm secrets are supplied through approved runtime mechanisms.",
+      "- Confirm app data that changes frequently is outside synced deployment folders.",
+      "",
+      "## Packages",
+      if (length(pkgs)) paste("- ", pkgs) else "- No packages detected yet.",
+      "",
+      "## Items to Review",
+      if (length(warn_items)) {
+        unlist(lapply(warn_items, function(x) paste0("- ", x$text, if (!is.null(x$detail)) paste0(": ", x$detail) else "")), use.names = FALSE)
+      } else {
+        "- No package warning items detected."
+      }
+    )
   })
 
   write_example_app <- function(kind) {
@@ -2143,6 +2381,7 @@ server <- function(input, output, session) {
   })
 
   diagnostic_lines <- reactive({
+    summary <- readiness_summary()
     checks <- preflight_checks()
     chk_lines <- unlist(lapply(checks, function(chk) {
       paste0("[", toupper(chk$state), "] ", chk$text,
@@ -2157,6 +2396,7 @@ server <- function(input, output, session) {
       paste("Source:", input$source_dir %||% ""),
       paste("Output:", input$output_dir %||% ""),
       paste("App name:", input$app_name %||% ""),
+      paste("Readiness:", paste0(summary$score, "% - ", summary$label)),
       paste("Build success:", rv$build_success),
       "",
       "Packages:",
@@ -2305,7 +2545,50 @@ server <- function(input, output, session) {
     )
   })
 
+  output$readiness_score_ui <- renderUI({
+    summary <- readiness_summary()
+    div(class = "readiness-panel",
+        div(class = paste("readiness-score", summary$state),
+            span(paste0(summary$score, "%")),
+            span(summary$label)
+        ),
+        div(
+          div(class = "readiness-title", summary$label),
+          div(class = "readiness-copy", summary$detail),
+          div(class = "readiness-copy",
+              paste("Blocking:", summary$fail_count, "| Warnings:", summary$warn_count))
+        )
+    )
+  })
+
   output$recipe_status_ui <- renderUI({ NULL })
+
+  apply_workflow <- function(goal) {
+    recipe <- switch(goal,
+      sharepoint = "sharepoint",
+      portable = "sharepoint",
+      report = "report",
+      handoff = "sharepoint",
+      inspect = "inspect",
+      "inspect"
+    )
+    updateSelectInput(session, "recipe_select", selected = recipe)
+    apply_recipe(recipe)
+    if (identical(goal, "portable")) {
+      updateCheckboxInput(session, "zip_output", value = TRUE)
+      updateCheckboxInput(session, "build_offline_repo", value = TRUE)
+    }
+    if (identical(goal, "handoff")) {
+      updateCheckboxInput(session, "zip_output", value = TRUE)
+    }
+    output$recipe_status_ui <- renderUI({
+      div(class = "profile-status ok", paste("Set up workflow:", names(workflow_choices)[match(goal, workflow_choices)]))
+    })
+  }
+
+  observeEvent(input$apply_workflow_goal, {
+    apply_workflow(input$workflow_goal %||% "inspect")
+  })
 
   apply_recipe <- function(recipe) {
     updateCheckboxInput(session, "zip_output", value = TRUE)
@@ -3281,6 +3564,8 @@ server <- function(input, output, session) {
               downloadButton("download_zip", "Download zip",
                              style = "background:#16a34a;color:white;border:none;border-radius:6px;padding:8px 16px;font-size:13px;margin-right:6px;")
             },
+            downloadButton("download_user_instructions", "User instructions",
+                           style = "background:#0d9488;color:white;border:none;border-radius:6px;padding:8px 16px;font-size:13px;margin-right:6px;"),
             actionButton("test_launch", "Test launch", class = "btn-test-launch")
           )
       )
@@ -3301,6 +3586,45 @@ server <- function(input, output, session) {
     contentType = "application/zip"
   )
 
+  output$download_readiness_report <- downloadHandler(
+    filename = function() {
+      safe <- gsub("[^A-Za-z0-9_]+", "_", trimws(input$app_name %||% "sharebridge_app"))
+      safe <- gsub("_+", "_", gsub("^_|_$", "", safe))
+      if (!nzchar(safe)) safe <- "sharebridge_app"
+      paste0(safe, "_readiness_report.md")
+    },
+    content = function(file) {
+      writeLines(report_lines(), file, useBytes = TRUE)
+    },
+    contentType = "text/markdown"
+  )
+
+  output$download_user_instructions <- downloadHandler(
+    filename = function() {
+      safe <- gsub("[^A-Za-z0-9_]+", "_", trimws(input$app_name %||% "sharebridge_app"))
+      safe <- gsub("_+", "_", gsub("^_|_$", "", safe))
+      if (!nzchar(safe)) safe <- "sharebridge_app"
+      paste0(safe, "_user_instructions.txt")
+    },
+    content = function(file) {
+      writeLines(user_instruction_lines(), file, useBytes = TRUE)
+    },
+    contentType = "text/plain"
+  )
+
+  output$download_it_checklist <- downloadHandler(
+    filename = function() {
+      safe <- gsub("[^A-Za-z0-9_]+", "_", trimws(input$app_name %||% "sharebridge_app"))
+      safe <- gsub("_+", "_", gsub("^_|_$", "", safe))
+      if (!nzchar(safe)) safe <- "sharebridge_app"
+      paste0(safe, "_it_checklist.md")
+    },
+    content = function(file) {
+      writeLines(it_checklist_lines(), file, useBytes = TRUE)
+    },
+    contentType = "text/markdown"
+  )
+
   output$download_diagnostics <- downloadHandler(
     filename = function() {
       stamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
@@ -3311,6 +3635,9 @@ server <- function(input, output, session) {
       dir.create(bundle_dir, recursive = TRUE, showWarnings = FALSE)
 
       writeLines(diagnostic_lines(), file.path(bundle_dir, "summary.txt"), useBytes = TRUE)
+      writeLines(report_lines(), file.path(bundle_dir, "readiness_report.md"), useBytes = TRUE)
+      writeLines(user_instruction_lines(), file.path(bundle_dir, "user_instructions.txt"), useBytes = TRUE)
+      writeLines(it_checklist_lines(), file.path(bundle_dir, "it_checklist.md"), useBytes = TRUE)
       writeLines(rv$log_lines %||% character(0), file.path(bundle_dir, "current_build.log"), useBytes = TRUE)
       if (!is.null(rv$selected_log_path) && file.exists(rv$selected_log_path)) {
         file.copy(rv$selected_log_path, file.path(bundle_dir, paste0("selected_", basename(rv$selected_log_path))),

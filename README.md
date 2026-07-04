@@ -30,6 +30,8 @@ ShareBridge provides:
     Hugging Face Spaces
 -   automatic package detection and bundling
 -   dependency review and preflight checks before publishing
+-   a readiness score with **ShareBridge-ready**, **Needs review**, or
+    **Blocked** status
 -   build recipes and example apps for quick validation
 -   optional offline package repository creation
 -   optional portable R bundling
@@ -37,6 +39,8 @@ ShareBridge provides:
 -   optional writable directory provisioning
 -   hidden background publishing with live logs
 -   downloadable diagnostics bundles for failed or questionable builds
+-   downloadable readiness reports, user instructions, and IT handoff
+    checklists
 -   a clean end-user launcher experience
 -   local app launch through a friendly loopback URL such as:
 
@@ -137,6 +141,12 @@ The Publisher UI supports:
     packages
 -   running preflight checks for structure, output, packages, Portable R,
     Pandoc, and local-only path risks
+-   flagging common runtime dependency risks such as Java, geospatial
+    libraries, browser tooling, ODBC, and credential handling packages
+-   scanning app code for portability risks such as hard-coded paths,
+    `setwd()`, interactive file pickers, references outside the app
+    folder, and possible hard-coded secrets
+-   showing a top-level readiness score and compatibility status
 -   adding optional extra packages manually
 -   choosing an output directory
 -   applying build recipes for SharePoint/offline, small app, report app,
@@ -153,6 +163,8 @@ The Publisher UI supports:
 -   viewing and deleting saved publisher logs from the UI
 -   downloading a diagnostics zip with logs, preflight notes, package
     lists, and health-check results
+-   downloading a Markdown readiness report for app owners or team review
+-   downloading a user instruction file and IT handoff checklist
 -   creating portable R directly from the Publisher UI (Strip R tab)
 -   clearing the form for a new build without refreshing
 
@@ -186,6 +198,11 @@ dependencies, checking for local path risks, and producing a downloadable
 deployment zip. For local Windows distribution, end users still need the
 complete ShareBridge deployment folder, including bundled Portable R
 when they do not have R installed.
+
+The hosted inspector is also useful before a team review. It produces a
+readiness score, a Markdown readiness report, a diagnostics bundle, and
+an IT checklist that summarize what should be fixed, approved, or
+confirmed before distribution.
 
 ------------------------------------------------------------------------
 

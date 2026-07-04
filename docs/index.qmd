@@ -81,7 +81,7 @@ The Publisher UI can also run as a hosted inspector on Posit Connect Cloud or Hu
   <div class="feature-card">
     <span class="icon">🖥️</span>
     <h3>Visual Publisher UI</h3>
-    <p>A Shiny-based publisher interface with live build progress, package detection, saved profiles, preflight checks, and diagnostics.</p>
+    <p>A Shiny-based publisher interface with live build progress, package detection, saved profiles, readiness scoring, preflight checks, and diagnostics.</p>
   </div>
 
   <div class="feature-card">
@@ -123,7 +123,7 @@ The Publisher UI can also run as a hosted inspector on Posit Connect Cloud or Hu
   <div class="feature-card">
     <span class="icon">i</span>
     <h3>Hosted inspector mode</h3>
-    <p>Run the Publisher UI on Posit Connect Cloud or Hugging Face Spaces to upload an app folder, inspect dependencies, run preflight checks, and download a generated zip.</p>
+    <p>Run the Publisher UI on Posit Connect Cloud or Hugging Face Spaces to upload an app folder, inspect dependencies, run preflight checks, download review reports, and download a generated zip.</p>
   </div>
 
   <div class="feature-card">

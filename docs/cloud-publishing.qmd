@@ -9,7 +9,7 @@ ShareBridge is built first for local Windows distribution, but the Shiny app ins
 Posit Connect Cloud does **not** run the full ShareBridge deployment folder. Publish the Shiny app source itself: `app.R` or `ui.R` + `server.R`, supporting folders, data files, and a `manifest.json`.
 :::
 
-The ShareBridge Publisher UI can also run on Connect Cloud or Hugging Face Spaces as a hosted inspector. In that mode, users upload an app folder with the browser folder picker, review dependencies and preflight checks, and download the generated zip. Hosted sessions cannot browse arbitrary local paths such as `C:\...` or create Portable R from a local Windows R installation.
+The ShareBridge Publisher UI can also run on Connect Cloud or Hugging Face Spaces as a hosted inspector. In that mode, users upload an app folder with the browser folder picker, review dependencies and preflight checks, download readiness reports and IT checklists, and download the generated zip. Hosted sessions cannot browse arbitrary local paths such as `C:\...` or create Portable R from a local Windows R installation.
 
 ## Posit Connect Cloud
 
@@ -113,9 +113,10 @@ Before using hosted inspector mode:
 
 - Click **Browse...** under **App folder** to upload the local app folder
 - Use zip upload only as a fallback
-- Review dependency notes and preflight warnings
+- Review the readiness score, dependency notes, and preflight warnings
 - Put files that must be bundled inside the uploaded app folder
 - Use `DATA_DIR` only for a runtime path the deployed Windows app will use later
+- Download the readiness report and IT checklist before team review
 - Download diagnostics if a build fails or a warning needs review
 
 Before publishing to Hugging Face Spaces:
