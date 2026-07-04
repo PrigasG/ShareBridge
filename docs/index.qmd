@@ -9,7 +9,7 @@ toc: false
 <div class="hero">
   <h1>Shiny ShareBridge</h1>
   <p class="lead">
-    Package and distribute Shiny apps to Windows users who have no admin rights,
+    Package, inspect, and distribute Shiny apps to Windows users who have no admin rights,
     no R installation, and no Shiny Server — just a SharePoint sync.
   </p>
   <a class="btn-hero" href="getting-started.html">Get Started</a>
@@ -29,6 +29,8 @@ Shiny ShareBridge is a local deployment framework for packaging Shiny apps into 
 - Distribution happens through SharePoint or OneDrive
 
 Shiny ShareBridge handles everything: bundling your app code, detecting and installing all package dependencies, copying a stripped portable R, and generating a clean launcher that opens the app in a friendly browser URL like `http://sharebridge-myapp.localhost:3670`.
+
+The Publisher UI can also run as a hosted inspector on Posit Connect Cloud or Hugging Face Spaces, where users upload a local app folder, review dependency and preflight checks, and download a generated zip.
 
 ---
 
@@ -79,7 +81,7 @@ Shiny ShareBridge handles everything: bundling your app code, detecting and inst
   <div class="feature-card">
     <span class="icon">🖥️</span>
     <h3>Visual Publisher UI</h3>
-    <p>A Shiny-based publisher interface with live build progress, package detection, and saved profiles.</p>
+    <p>A Shiny-based publisher interface with live build progress, package detection, saved profiles, preflight checks, and diagnostics.</p>
   </div>
 
   <div class="feature-card">
@@ -116,6 +118,18 @@ Shiny ShareBridge handles everything: bundling your app code, detecting and inst
     <span class="icon">💾</span>
     <h3>Build profiles</h3>
     <p>Save your publisher settings as named profiles. Reload them in one click for repeatable builds across versions.</p>
+  </div>
+
+  <div class="feature-card">
+    <span class="icon">i</span>
+    <h3>Hosted inspector mode</h3>
+    <p>Run the Publisher UI on Posit Connect Cloud or Hugging Face Spaces to upload an app folder, inspect dependencies, run preflight checks, and download a generated zip.</p>
+  </div>
+
+  <div class="feature-card">
+    <span class="icon">*</span>
+    <h3>Recipes and examples</h3>
+    <p>Apply common build recipes or load sample apps to test ShareBridge behavior before publishing your own project.</p>
   </div>
 
 </div>

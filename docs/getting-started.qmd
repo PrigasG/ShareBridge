@@ -87,8 +87,9 @@ If your environment blocks `.hta` files via Group Policy, use `publish.bat` inst
   <li>
     <div>
       <strong>Review detected packages</strong><br>
-      Shiny ShareBridge scans your app code and lists all packages it found. Add any extras the scanner
-      might miss (dynamic loading, etc.) in the <em>Additional packages</em> box.
+      Shiny ShareBridge scans your app code and lists all packages it found. Review the dependency notes
+      and preflight checks, then add any extras the scanner might miss (dynamic loading, etc.) in the
+      <em>Additional packages</em> box.
     </div>
   </li>
   <li>
@@ -149,6 +150,8 @@ After a successful build, Shiny ShareBridge automatically runs a **health check*
 
 Then click **Test launch** to open the app exactly as an end user would.
 
+If a build fails or a warning needs review, open **Publisher logs** and download the diagnostics zip. It includes the current log, selected saved log, package list, preflight notes, and health-check details when available.
+
 ---
 
 ## Step 7 — Distribute
@@ -166,6 +169,8 @@ If you distribute a zip instead of a synced folder, zip the complete Publisher o
 ## Publishing to Posit Connect Cloud and Hugging Face
 
 For hosted publishing, publish the Shiny app source rather than the ShareBridge deployment folder. Posit Connect Cloud expects a public GitHub repository with a primary file such as `app.R` and a `manifest.json` created by `rsconnect::writeManifest()`.
+
+When the Publisher UI itself runs on Connect Cloud or Hugging Face, use **Browse...** to upload a local app folder into the hosted session. Hosted sessions can inspect and build a downloadable zip, but they cannot browse arbitrary paths on your computer or create Portable R from your local Windows R installation.
 
 For Hugging Face Spaces, use the Space repository:
 

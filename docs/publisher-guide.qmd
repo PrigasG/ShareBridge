@@ -16,6 +16,10 @@ This guide covers every feature of the Shiny ShareBridge Publisher in depth. For
 
 Both open the same Shiny-based Publisher UI in your default browser.
 
+::: callout-note
+When the same Publisher UI runs on Posit Connect Cloud or Hugging Face Spaces, it is in hosted inspector mode. Hosted sessions can upload a local app folder through the browser, inspect it, and return a generated zip, but they cannot browse arbitrary folders on your computer or create Portable R from your local Windows installation.
+:::
+
 ::: callout-important
 Always launch from inside the **Shiny ShareBridge framework root** — not from inside a deployed app folder.
 :::
@@ -42,6 +46,12 @@ my_app/
 ```
 
 Supporting folders are copied automatically: `www/`, `R/`, `modules/`, `data/`, `config/`, and any other files or subdirectories in the source.
+
+### Hosted source upload
+
+In hosted mode, click **Browse...** under **App folder** to open your browser's local folder picker. The selected folder is uploaded into the hosted runtime and ShareBridge uses that server-side copy. The **Upload zip instead** fallback is available when a browser or environment does not support folder uploads.
+
+Hosted mode does not use a free-form local source path because a hosted server cannot read `C:\...` or `\\server\...` paths from your machine unless those files are uploaded.
 
 ### Validation badge
 
@@ -76,6 +86,14 @@ Shiny ShareBridge scans all `.R`, `.Rmd`, and `.qmd` files in the source folder 
 
 Add these manually in the **Additional packages** box (one per line).
 
+### Dependency review
+
+The Publisher UI also shows a dependency review below the detected package list. It highlights common signals such as:
+
+- Report packages (`rmarkdown`, `knitr`, `quarto`, `pagedown`, `officer`, `flextable`) that may need Pandoc support
+- Data access packages (`DBI`, `odbc`, `RSQLite`, `pool`, `arrow`, `duckdb`) that may need credentials or runtime data paths
+- Interactive UI packages (`DT`, `plotly`, `leaflet`, `htmlwidgets`, `bslib`) that should be bundled like any other dependency
+
 ---
 
 ## Output options
@@ -102,6 +120,42 @@ When enabled, Shiny ShareBridge downloads a copy of all bundled packages into a 
 
 Use this when your end users have no internet access.
 
+### Hosted output
+
+In hosted mode, the output folder is generated automatically inside the hosted runtime. The result is returned as a zip download from the build success bar. Hosted sessions cannot select a folder on your computer as the output destination.
+
+---
+
+## Recipes, examples, and preflight
+
+### Build recipes
+
+The **Recipes and examples** panel applies common option sets without changing the selected source folder:
+
+| Recipe | Use |
+|---|---|
+| SharePoint offline deployment | Zip output plus offline repo for file-share distribution |
+| Small app, no portable R | Lightweight build when target machines already have compatible R |
+| Report app with Pandoc | Turns on Pandoc and rmarkdown helper support |
+| Hosted validation only | Hosted review before a local production build |
+| Upload inspection only | Quick source/package inspection in hosted mode |
+
+### Example apps
+
+The built-in examples create temporary Shiny apps for quick testing:
+
+| Example | What it tests |
+|---|---|
+| Simple app | Basic Shiny app packaging |
+| Data app | Bundled data files under `data/` |
+| Report app | `rmarkdown`/`knitr` detection and Pandoc-related options |
+
+### Preflight checks
+
+The **Preflight** panel checks whether the source is valid, the app name and output are set, build R is available, packages are detected, Portable R is present, app files are visible, and obvious local path risks are present in `.R`, `.Rmd`, or `.qmd` files.
+
+Warnings do not always block builds, but they should be reviewed before distributing the output to users.
+
 ---
 
 ## Advanced app features
@@ -126,6 +180,8 @@ At runtime, if `pandoc/pandoc.exe` is present, Shiny ShareBridge sets `RSTUDIO_P
 
 Shiny ShareBridge links to the official Pandoc install page and release downloads from the Publisher UI. This keeps the framework small and lets publishers choose the version their environment allows. If you place `pandoc.exe` and its supporting files under the deployment `pandoc/` folder, Shiny ShareBridge will use that bundled copy at runtime.
 
+The Publisher UI shows whether `pandoc/pandoc.exe` is currently present in the framework. If it is missing, the app can still build a Pandoc-ready stub, but report rendering that requires Pandoc will need the executable added before distribution.
+
 ### External data directory (DATA_DIR)
 
 For apps that write data which should **not** live inside the synced SharePoint folder (e.g. frequently written outputs, user uploads), set a `DATA_DIR` path here.
@@ -139,6 +195,8 @@ Example in your app code:
 ```r
 data_dir <- Sys.getenv("SHAREBRIDGE_DATA_DIR", unset = "data")
 ```
+
+In hosted mode, `DATA_DIR` is only a runtime path recorded for the eventual deployed Windows app. To bundle data files during a hosted build, put the files inside the uploaded app folder or zip.
 
 ---
 
@@ -210,6 +268,8 @@ Build settings can be saved as named JSON profiles stored in `<framework_root>/p
 Profiles store absolute paths for `source_dir` and `output_dir`. These will need updating if the profile is used on a different machine.
 :::
 
+In hosted mode, profiles save reusable options but do not save uploaded files or generated server output paths. Upload the app folder again for each hosted session.
+
 ---
 
 ## Publisher logs
@@ -221,6 +281,7 @@ From the **Publisher logs** panel you can:
 - Browse all saved log files
 - Preview the last 250 lines of any log
 - Delete individual or all logs
+- Download a diagnostics zip with summary notes, current logs, selected saved log, package list, preflight results, and health-check JSON when available
 
 Logs contain the full build subprocess output — useful for diagnosing failed installs, missing packages, or robocopy errors.
 
@@ -265,3 +326,5 @@ All runtime code, DLLs, NAMESPACE, and DESCRIPTION files are preserved.
 You only need to do this once per R version.
 
 Use the official [R for Windows download](https://cran.r-project.org/bin/windows/base/) as the source for the full R installation. Shiny ShareBridge can strip and bundle that local installation into `R-portable-master/`, but the project does not ship a prebuilt portable R binary by default. If you redistribute deployments with bundled R, retain the applicable R license notices; R is licensed under GPL-2 or GPL-3.
+
+Hosted sessions cannot create Portable R because they cannot browse or package the publisher's local Windows R installation. Use the local Windows Publisher UI for this step.

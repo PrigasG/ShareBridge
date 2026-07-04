@@ -17,6 +17,11 @@ description: "Version history and release notes for Shiny ShareBridge"
 - **Test launch button** — appears in the success result bar after a build. Opens `LaunchApp.hta` from the output folder directly, identical to end-user experience.
 - **DATA_DIR field** — new field in Advanced app features. Writes `DATA_DIR=` to `app_meta.cfg`. Exposed at runtime as `SHAREBRIDGE_DATA_DIR`.
 
+- **Hosted inspector mode** - Connect Cloud and Hugging Face sessions can upload a local app folder through the browser, inspect dependencies, run preflight checks, and return a generated zip.
+- **Recipes and examples** - common build recipes plus simple, data, and report example apps for quick validation.
+- **Dependency review and preflight checks** - flags report/data/UI dependency hints, local-only path risks, Portable R status, Pandoc status, and visible app files before building.
+- **Diagnostics download** - creates a zip with summary notes, current logs, selected saved log, package list, preflight results, and health-check JSON when available.
+
 **Runtime (`run.R`)**
 
 - **R version mismatch guard** — reads `RVersionMajorMinor` from `VERSION` and logs a warning if the running R major.minor does not match the build R version.

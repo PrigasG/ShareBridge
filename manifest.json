@@ -1158,13 +1158,13 @@
       "checksum": "086bb3e59d8ac6fbcba8526a54b141fb"
     },
     "docs/changelog.qmd": {
-      "checksum": "051247b13e468e9b5e2371cd01277967"
+      "checksum": "4532b19d0fdc3624ee9bae5ece79d7bd"
     },
     "docs/cloud-publishing.qmd": {
-      "checksum": "1f1930e2281dbb04ac82568910eb3010"
+      "checksum": "f571d8609bfcafd303d705c10c7472dd"
     },
     "docs/getting-started.qmd": {
-      "checksum": "a57353cfee736b6099822bc0646d8e84"
+      "checksum": "c3b5940d453fe52505dec94500b1b314"
     },
     "docs/images/favicon.svg": {
       "checksum": "a59416fafd925b28728f2413a32d9964"
@@ -1173,10 +1173,10 @@
       "checksum": "1108f61289bceb685fa68a17db309bf2"
     },
     "docs/index.qmd": {
-      "checksum": "da47de661b0f289f3654b65ad2545dc7"
+      "checksum": "1bf7d6c6164b69bc88fa74980a8d0b6f"
     },
     "docs/publisher-guide.qmd": {
-      "checksum": "f2ea7b4c0a108b1b93c192fe129f3828"
+      "checksum": "568f23e2ddafb7ed64fb5579fb49d178"
     },
     "docs/reference.qmd": {
       "checksum": "f9a925d68f18c851bb7bd2216230eb7a"
@@ -1197,7 +1197,7 @@
       "checksum": "612f87ac7d1b94bfdff13a39a770301a"
     },
     "README.md": {
-      "checksum": "f6bc738b62d62d955541414adc05fbd9"
+      "checksum": "b82bfa871cdc32cb60bd8f229f58915b"
     },
     "run.bat": {
       "checksum": "7eece2163ed49d2787cf1504bb5d89cd"

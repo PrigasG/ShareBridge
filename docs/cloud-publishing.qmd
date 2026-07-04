@@ -9,6 +9,8 @@ ShareBridge is built first for local Windows distribution, but the Shiny app ins
 Posit Connect Cloud does **not** run the full ShareBridge deployment folder. Publish the Shiny app source itself: `app.R` or `ui.R` + `server.R`, supporting folders, data files, and a `manifest.json`.
 :::
 
+The ShareBridge Publisher UI can also run on Connect Cloud or Hugging Face Spaces as a hosted inspector. In that mode, users upload an app folder with the browser folder picker, review dependencies and preflight checks, and download the generated zip. Hosted sessions cannot browse arbitrary local paths such as `C:\...` or create Portable R from a local Windows R installation.
+
 ## Posit Connect Cloud
 
 Posit's current Connect Cloud workflow for Shiny for R expects:
@@ -25,6 +27,22 @@ rsconnect::writeManifest(appDir = ".")
 ```
 
 Commit and push the app source plus `manifest.json` to GitHub, then publish from Connect Cloud by choosing **Shiny**, selecting the repository and branch, choosing the primary file, and clicking **Publish**.
+
+For the ShareBridge Publisher UI itself, the repository root includes `app.R` as the Connect Cloud entry point and `manifest.json` generated from the tracked project files. Commit and push both files whenever the Publisher UI changes.
+
+Use this command from the framework root when regenerating the ShareBridge Publisher manifest:
+
+```r
+files <- system2("git", "ls-files", stdout = TRUE)
+files <- files[!files %in% c("manifest.json")]
+files <- files[!grepl("^(R-portable|R-portable-master|\\.claude)/", files)]
+rsconnect::writeManifest(
+  appDir = ".",
+  appFiles = files,
+  appPrimaryDoc = "app.R",
+  appMode = "shiny"
+)
+```
 
 ## Hugging Face Spaces
 
@@ -49,6 +67,8 @@ app_port: 7860
 ```
 
 For Hugging Face, publish the app source and Docker build files rather than the zipped ShareBridge Windows deployment. The portable Windows `R/` runtime is for local ShareBridge zip distribution, not for a Linux Docker Space.
+
+The ShareBridge Space uses the same hosted inspector behavior as Connect Cloud. It should install Shiny in the Docker image and launch `build/publisher_ui/app.R` on port `7860`.
 
 ### Recommended source layout
 
@@ -76,6 +96,8 @@ If end users should run the zipped ShareBridge app without installing R, create 
 
 Use Connect Cloud or Hugging Face Spaces when the target is a hosted app. In that case, users do not need a zipped ShareBridge folder or bundled portable R; they open the hosted app URL.
 
+When the hosted Publisher UI generates a zip, treat it as a downloadable ShareBridge deployment artifact. For Windows users who do not have R installed, confirm the framework had Portable R available before the build so the zip includes the generated `R/` folder.
+
 ## Deployment checklist
 
 Before publishing to Connect Cloud:
@@ -86,6 +108,15 @@ Before publishing to Connect Cloud:
 - Run `rsconnect::writeManifest(appDir = ".")`
 - Commit and push to GitHub
 - Publish the repository from Connect Cloud
+
+Before using hosted inspector mode:
+
+- Click **Browse...** under **App folder** to upload the local app folder
+- Use zip upload only as a fallback
+- Review dependency notes and preflight warnings
+- Put files that must be bundled inside the uploaded app folder
+- Use `DATA_DIR` only for a runtime path the deployed Windows app will use later
+- Download diagnostics if a build fails or a warning needs review
 
 Before publishing to Hugging Face Spaces:
 
